@@ -1,0 +1,21 @@
+﻿Important information - please read
+
+1. Back up first.
+   MiniDisc Manager can write to and erase MiniDiscs. It has only been tried on a Sony MZ-NH700 and an MZ-RH1, and a disc can be
+   left unplayable if a write is interrupted. Copy any recordings you cannot replace to your PC before you edit a disc, and do not
+   unplug the recorder while the program says it is working.
+
+2. A USB driver step is needed, once per recorder.
+   The program talks to the recorder directly over USB, which needs the WinUSB driver. At the end of this setup you can open the
+   driver setup guide (it is also in the Start Menu under MiniDisc Manager). It takes about two minutes with a free tool called Zadig.
+   Until it is done the program will say "No recorder found".
+
+3. Windows may ask about network access.
+   The first time you play to a Sonos speaker or a Google TV, Windows Firewall may ask. Choose "Allow" for private networks.
+
+4. Your data stays on your PC.
+   Backups of each disc's track index and a small log are kept in %LOCALAPPDATA%\MiniDiscManager. Uninstalling does not delete them.
+
+5. Not affiliated.
+   MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos. It is free software built on open-source libraries; the licences
+   are in the install folder (LICENSE.txt, THIRD-PARTY-NOTICES.txt and the LICENSES folder).
