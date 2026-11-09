@@ -3870,7 +3870,13 @@ async function startAdd(paths) {
   };
   go.textContent = 'Add ' + good.length + (good.length === 1 ? ' track' : ' tracks') + ' to the disc';
   const gc = p.netmd ? null : groupChoice();
-  go.onclick = () => runUpload(rows, chosen, kbps, gc && gc.get());
+  // A standard disc has no artist field: the artist (from the ID3 tag) can go in front of each title instead.
+  let artistFirst = true;
+  try { artistFirst = localStorage.getItem('mdArtistInTitle') !== '0'; } catch (e) { /* no storage */ }
+  const artistBox = el('input', { type: 'checkbox', checked: artistFirst, onchange: () => { try { localStorage.setItem('mdArtistInTitle', artistBox.checked ? '1' : '0'); } catch (e) { /* no storage */ } } });
+  const artistRow = p.netmd ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, artistBox,
+    el('span', { textContent: 'Put the artist in front of each title (“Artist - Title”), because a standard disc cannot store an artist. Uses up more of the disc’s limited title space.' })) : '';
+  go.onclick = () => runUpload(rows, chosen, kbps, gc && gc.get(), p.netmd && artistBox.checked);
   const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like. Nothing has been written yet.' }), list];
   {
     const names = p.netmd
@@ -3891,10 +3897,10 @@ async function startAdd(paths) {
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The ATRAC3+ options are encoded on this PC (this takes about a minute for a three-minute track). They are new: try one short track on your recorder before adding a lot.' }));
     parts.push(pick);
   }
-  parts.push(...(gc ? [gc.row] : []), info, warn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
-}async function runUpload(rows, format, kbps, group) {
+}async function runUpload(rows, format, kbps, group, artistInTitle) {
   uploading = true; stopPlayer();
   const prog = liveProgress('Starting…', 6, true);
   openFloat(el('h2', { textContent: 'Writing to the disc' }), prog.what, prog.bar, prog.stallBox,
@@ -3909,7 +3915,11 @@ async function startAdd(paths) {
       rows.length > 1 && m.total ? (m.file + (m.phase === 'encrypting' ? 0.5 * m.done / m.total : 0.5 + 0.5 * m.done / m.total)) / rows.length : undefined);        // the bar fills once for each stage; several files: the share of the whole job (each file: half preparing, half writing)
   };
   const before = trackMap.size;
-  const r = await api().upload(rows.map(x => ({ path: x.f.path, title: x.title.value.trim(), artist: x.artist.value.trim(), album: x.f.album })), format || 'sp', kbps || 192);
+  const nameOf = x => {                                                         // standard disc: "Artist - Title", unless the title already starts with the artist
+    const title = x.title.value.trim(), artist = x.artist.value.trim();
+    return artistInTitle && artist && !title.toLowerCase().startsWith(artist.toLowerCase() + ' - ') ? artist + ' - ' + title : title;
+  };
+  const r = await api().upload(rows.map(x => ({ path: x.f.path, title: nameOf(x), artist: x.artist.value.trim(), album: x.f.album })), format || 'sp', kbps || 192);
   prog.stop(); uploading = false; window.onUploadProgress = null;
   if (r.error) {
     errorSheet('Adding tracks failed', r.error, { kept: 'Your original files were not changed. After the steps above, press rescan to see what state the disc is in.', onClose: () => scan() }); floatSheet(true);

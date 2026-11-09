@@ -125,6 +125,18 @@ function convertToWav(file) {
 }
 
 // Returns what we know about a file without touching the recorder. Call release() when done with it.
+// Title / artist / album from the ID3 tag of an MP3 (empty strings for anything else, or if the tag is missing or unreadable).
+function readTags(file) {
+    const none = { title: '', artist: '', album: '' };
+    if (!/\.mp3$/i.test(file)) return none;
+    try {
+        const t = mod('node-id3').read(file) || {};
+        return { title: String(t.title || '').trim(), artist: String(t.artist || '').trim(), album: String(t.album || '').trim() };
+    } catch (e) {
+        return none;
+    }
+}
+
 function inspect(f) {
     const file = typeof f === 'string' ? f : f.path;
     const isWav = /\.wav$/i.test(file);
@@ -213,7 +225,8 @@ const commands = {
             try {
                 const i = inspect(f);
                 i.release();
-                out.push({ path: i.path, kind: i.kind, bytes: i.bytes, seconds: Math.round(i.seconds), title: i.title, artist: '', album: '' });
+                const tags = readTags(i.path);                  // MP3 ID3 tags: the title replaces the file name, the artist is kept for "Artist - Title"
+                out.push({ path: i.path, kind: i.kind, bytes: i.bytes, seconds: Math.round(i.seconds), title: cleanTitle(tags.title || i.title), artist: tags.artist, album: tags.album });
                 needUnits += Math.ceil(i.seconds * UNITS_PER_SECOND);
             } catch (e) {
                 out.push({ path: typeof f === 'string' ? f : f.path, error: e.message });
