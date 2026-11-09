@@ -1,0 +1,165 @@
+Third-party components in MiniDisc Manager
+==========================================
+
+MiniDisc Manager bundles the open-source components below. Their licence texts are in LICENSES\ and inside each package folder.
+The author's own code is covered by LICENSE.txt. This is a notice of what is included, not legal advice.
+
+A. GPL-2.0 libraries (run by helper\*.js on the bundled Node)
+-------------------------------------------------------------
+himd-js 0.2.7              GPL-2.0   Hi-MD library          https://github.com/asivery/himd-js
+netmd-js 4.3.0             GPL-2.0   NetMD library          https://github.com/cybercase/netmd-js
+netmd-exploits 0.5.11      GPL-2.0   NetMD/Hi-MD firmware patches (used only for the opt-in NH700 download)   https://github.com/asivery/netmd-exploits
+netmd-tocmanip 0.1.5       GPL-2.0   NetMD TOC library      https://github.com/asivery/netmd-tocmanip
+
+NOTICE OF CHANGES (GPL-2.0, section 2a): the copy of himd-js 0.2.7 shipped in runtime\node_modules\himd-js is MODIFIED. Changed file:
+dist\himd-functions.js, function deleteTracks (and the new function planFreeRegions, marked "PATCH (MiniDisc Manager)" in the file).
+Modified 2026-11-05 by Vinny Powell. What changed: when tracks are deleted, the original code also freed the audio block that a
+neighbouring track shares with the deleted one (recorders let one track end in the block the next starts in), which damaged the
+neighbour's audio. The modified code never frees a block that a track which stays still uses, merges touching regions, and moves the
+remaining tracks by the right amount. The source of the whole library, with this change, is in that folder (it is plain JavaScript).
+node-mass-storage 0.2.4    GPL-2.0   USB mass storage       https://github.com/asivery/node-mass-storage
+nufatfs 0.1.10             GPL-2.0   FAT file system        https://github.com/asivery/nufatfs
+Text of the licence: LICENSES\GPL-2.0.txt (also in each package folder under runtime\node_modules).
+These libraries are shipped as readable JavaScript in runtime\node_modules (not minified). The complete source of each version
+is at the address above; on request the author will provide a copy of the source.
+
+B. Other programs included
+--------------------------
+Node.js 24.22.0            MIT (with licences of its bundled parts)   runtime\node.exe, licence: runtime\LICENSE-node.txt
+                           https://nodejs.org
+FFmpeg n8.1.3              LGPL-3.0-or-later, built without GPL or non-free parts (--enable-version3), includes libmp3lame (LGPL)
+                           runtime\ffmpeg.exe, licence: runtime\LICENSE-ffmpeg.txt
+                           Source: https://ffmpeg.org/download.html   Build scripts: https://github.com/BtbN/FFmpeg-Builds
+                           ffmpeg.exe is a separate program: you may replace it with another build of FFmpeg.
+atracdenc (WebAssembly)    LGPL-2.1, WebAssembly build of the open-source encoder   runtime\atracdenc\atracdenc.js
+                           https://github.com/dcherednik/atracdenc   (notice: runtime\atracdenc\LICENSE-atracdenc.txt)
+atracdenc 0.2.3 (Windows)  LGPL-2.1, built from the 0.2.3 source with a small change (frame size);   runtime\atracdenc3p\atracdenc.exe
+                           the change is runtime\atracdenc3p\atracdenc-0.2.3-framesize.patch   (notice: runtime\atracdenc3p\NOTICE.txt)
+                           https://github.com/dcherednik/atracdenc   with libgha (BSD-2-Clause, LICENSES\libgha-BSD-2-Clause.txt)
+libsndfile 1.2.2            LGPL-2.1, official win64 release, unmodified     runtime\atracdenc3p\sndfile.dll
+                           https://github.com/libsndfile/libsndfile   (licence: LICENSES\libsndfile-LGPL-2.1.txt)
+                           Used only for the experimental ATRAC3+ option. Run only if its SHA-256 matches the checked file.
+                           It is a separate program: you may replace it with another build.
+
+C. Python packages (in the packaged program)
+--------------------------------------------
+Python 3.12                PSF licence                       https://www.python.org
+PyInstaller                GPL-2.0 with an exception that allows use for any program   https://pyinstaller.org
+pyusb 1.3.1                BSD-3-Clause                      LICENSES\python\pyusb.txt
+libusb-package 1.0.30      Apache-2.0                        LICENSES\python\libusb_package.txt
+libusb 1.0 (libusb-1.0.dll) LGPL-2.1-or-later                https://libusb.info   The DLL is a separate file and can be replaced.
+pywebview 6.2.1            BSD-3-Clause                      LICENSES\python\pywebview.txt
+pythonnet 3.2.1            MIT                               LICENSES\python\pythonnet.txt
+clr_loader 0.3.1           MIT                               LICENSES\python\clr_loader.txt
+bottle 0.13.4              MIT                               LICENSES\python\bottle.txt
+proxy_tools 0.1.0          MIT (the package ships no licence text)   https://pypi.org/project/proxy_tools/
+typing_extensions 4.16.0   PSF-2.0                           LICENSES\python\typing_extensions.txt
+
+D. Not included, used or mentioned
+----------------------------------
+Zadig (USB driver tool, GPL-3.0, libwdi LGPL) is NOT bundled. DRIVER-SETUP.html tells the user to download it from https://zadig.akeo.ie
+Microsoft Edge WebView2 Runtime is NOT bundled; the window needs it (Windows 11 includes it).
+Sonos is controlled with the standard UPnP protocol; no Sonos code is included.
+
+E. Node packages bundled in runtime\node_modules (generated list)
+------------------------------------------------------------------
+Each package folder contains its own licence file. Only licences that are not MIT / ISC / BSD are listed in section A or B.
+@originjs/crypto-js-wasm is MulanPSL-2.0 (permissive); pako is MIT AND Zlib.
+
+@browser-bunyan/console-formatted-stream   1.8.0      MIT
+@browser-bunyan/console-plain-stream       1.8.0      MIT
+@browser-bunyan/console-raw-stream         1.8.0      MIT
+@browser-bunyan/levels                     1.8.0      MIT
+@originjs/crypto-js-wasm                   1.1.0      MulanPSL2
+1to2                                       1.0.0      MIT
+add                                        2.0.6      MIT
+ansi-regex                                 5.0.1      MIT
+ansi-styles                                4.3.0      MIT
+async-mutex                                0.4.1      MIT
+balanced-match                             1.0.2      MIT
+base64-js                                  1.5.1      MIT
+brace-expansion                            1.1.12     MIT
+browser-bunyan                             1.8.0      MIT
+buffer                                     5.7.1      MIT
+bunyan                                     1.8.15     MIT
+camelcase                                  5.3.1      MIT
+cliui                                      6.0.0      ISC
+color-convert                              2.0.1      MIT
+color-name                                 1.1.4      MIT
+concat-map                                 0.0.1      MIT
+decamelize                                 1.2.0      MIT
+diacritics                                 1.3.0      MIT
+dom-walk                                   0.1.2      MIT
+dtrace-provider                            0.8.8      BSD-2-Clause
+emoji-regex                                8.0.0      MIT
+find-up                                    4.1.0      MIT
+get-caller-file                            2.0.5      ISC
+glob                                       6.0.4      ISC
+global                                     4.4.0      MIT
+himd-js                                    0.2.7      GPL-2.0
+iconv-lite                                 0.6.2      MIT
+iconv-lite                                 0.6.3      MIT
+ieee754                                    1.2.1      BSD-3-Clause
+inflight                                   1.0.6      ISC
+inherits                                   2.0.4      ISC
+is-fullwidth-code-point                    3.0.0      MIT
+jconv                                      0.1.5      MIT
+jsbi                                       3.2.5      Apache-2.0
+jsbi (inside netmd-exploits)               4.3.0      Apache-2.0
+locate-path                                5.0.0      MIT
+min-document                               2.19.0     MIT
+minimatch                                  3.1.2      ISC
+minimist                                   1.2.6      MIT
+mkdirp                                     0.5.6      MIT
+moment                                     2.29.4     MIT
+mp3-parser                                 0.3.0      MIT
+mv                                         2.1.1      MIT
+nan                                        2.17.0     MIT
+ncp                                        2.0.0      MIT
+netmd-exploits                             0.5.11     GPL-2.0 (package licence; its assembler is a modified keystone-js, built on the Keystone engine which is GPL-2.0)
+browser-or-node                            2.1.1      MIT
+expr-eval                                  2.0.2      MIT
+netmd-js                                   4.3.0      GPL-2.0
+netmd-tocmanip                             0.1.5      GPL-2.0
+node-addon-api                             8.1.0      MIT
+node-gyp-build                             4.8.1      MIT
+node-id3                                   0.2.6      MIT
+node-mass-storage                          0.2.4      GPL-2.0
+nufatfs                                    0.1.10     GPL-2.0
+once                                       1.4.0      ISC
+pako                                       2.0.4      (MIT AND Zlib)
+path-exists                                4.0.0      MIT
+path-is-absolute                           1.0.1      MIT
+p-limit                                    2.3.0      MIT
+p-locate                                   4.1.0      MIT
+process                                    0.11.10    MIT
+p-try                                      2.2.0      MIT
+require-directory                          2.1.1      MIT
+require-main-filename                      2.0.0      ISC
+rimraf                                     2.4.5      ISC
+safe-json-stringify                        1.2.0      MIT
+safer-buffer                               2.1.2      MIT
+set-blocking                               2.0.0      ISC
+string-width                               4.2.3      MIT
+strip-ansi                                 6.0.1      MIT
+tslib                                      2.4.0      0BSD
+usb                                        2.13.0     MIT
+which-module                               2.0.1      ISC
+wrap-ansi                                  6.2.0      MIT
+wrappy                                     1.0.2      ISC
+y18n                                       4.0.3      ISC
+yargs                                      15.4.1     MIT
+yargs-parser                               18.1.3     ISC
+
+C. Downloaded only when you ask for it (Lyrics > Listen...)
+------------------------------------------------------------
+whisper.cpp                MIT   speech recogniser program, downloaded from https://github.com/ggml-org/whisper.cpp/releases into your user folder
+Whisper "small" model      MIT   OpenAI's Whisper speech model in the ggml format (ggml-small-q5_1.bin), downloaded from https://huggingface.co/ggerganov/whisper.cpp
+These are not part of the installer. They run on this PC and no audio is sent anywhere; "Remove the recogniser" in the Listen sheet deletes them.
+The online lyrics lookups (LRCLIB, NetEase Cloud Music, lyrics.ovh) are separate third-party services; only a track's artist, title, album and length are sent.
+
+Photographs of recorders
+-------------------------
+The recorder pictures in ui\recorders\ are freely licensed photographs from Wikimedia Commons (CC BY, CC BY-SA, or public domain), scaled down.
+The authors and licences are listed in ui\recorders\CREDITS.txt and under each picture in the program.
+The small MZ-NH700 picture is a product image of that recorder; its copyright remains with its owner (see CREDITS.txt).

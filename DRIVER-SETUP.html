@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MiniDisc Manager - USB driver setup</title>
+<style>
+  :root { --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#2a3040; --text:#e8eaf0; --muted:#9aa2b5; --accent:#5b8cff; --accent2:#8f6bff; --ok:#3ecf8e; --warn:#f5b84a; --bad:#ff6b6b; }
+  @media (prefers-color-scheme: light) { :root { --bg:#f4f5f8; --panel:#ffffff; --panel2:#f3f5fa; --line:#dfe3ec; --text:#1a1d26; --muted:#5d6579; --accent:#3d6bff; --accent2:#7a55ff; } }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.55 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 38px 24px 70px; }
+  h1 { font-size: 34px; margin: 0 0 6px; letter-spacing: -.02em; }
+  h1 span { background: linear-gradient(90deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); font-size: 18px; margin: 0 0 26px; }
+  h2 { font-size: 22px; margin: 38px 0 12px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px; margin: 14px 0; }
+  .note { border-left: 4px solid var(--accent); }
+  .warn { border-left: 4px solid var(--warn); }
+  .bad { border-left: 4px solid var(--bad); }
+  .ok { border-left: 4px solid var(--ok); }
+  .card > :first-child { margin-top: 0; } .card > :last-child { margin-bottom: 0; }
+  ol.steps { counter-reset: s; list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 14px 18px 14px 64px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 16px; top: 13px; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2)); }
+  code, kbd { font-family: "Cascadia Mono", Consolas, monospace; font-size: .92em; background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 1px 7px; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); font-size: 15px; }
+  th { color: var(--muted); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; }
+  a { color: var(--accent); }
+  .tag { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 99px; background: var(--panel2); border: 1px solid var(--line); color: var(--muted); }
+  .tag.t { color: var(--ok); border-color: var(--ok); }
+  details { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 18px; margin: 10px 0; }
+  summary { cursor: pointer; font-weight: 650; }
+  details[open] summary { margin-bottom: 8px; }
+  footer { margin-top: 44px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>USB driver setup <span>for MiniDisc Manager</span></h1>
+  <p class="lead">A one-time step per recorder. It takes about two minutes and needs a free tool called Zadig.</p>
+
+  <div class="card note">
+    <b>Why is this needed?</b><br>
+    MiniDisc Manager talks to the recorder directly over USB. For that, Windows must use a generic
+    driver called <b>WinUSB</b> for your recorder. Windows normally chooses a different driver (or no driver), so the app cannot
+    see the recorder until you switch it. Nothing else on your PC is affected.
+  </div>
+
+  <div class="card warn">
+    <b>What changes when you do this</b>
+    <ul>
+      <li>A Hi-MD recorder will <b>stop appearing as a drive letter</b> in File Explorer. That is expected: the app reads it directly.</li>
+      <li>Sony's own programs (SonicStage, Hi-MD Walkman software) will no longer find that recorder until you undo the change (see the end of this page).</li>
+      <li>You do this for each recorder you use, and once more for the second USB mode if you use both Hi-MD and standard discs (see step 8).</li>
+    </ul>
+  </div>
+
+  <h2>Before you start</h2>
+  <ul>
+    <li>Close MiniDisc Manager, SonicStage and anything else that uses the recorder.</li>
+    <li>Use a USB cable plugged <b>directly into the PC</b> (not a hub if you can avoid it).</li>
+    <li>Download <b>Zadig</b> from its official site: <a href="https://zadig.akeo.ie/">https://zadig.akeo.ie/</a>. It is a single program; it needs no installation.
+        Zadig is a separate free program by the libwdi / Akeo project and is not part of MiniDisc Manager.</li>
+  </ul>
+
+  <h2>Step by step</h2>
+  <ol class="steps">
+    <li><b>Put a disc in the recorder and switch it on.</b> For a Hi-MD recorder, any disc will do. A recorder with a standard MiniDisc inside shows up in a different USB mode (see step 8).</li>
+    <li><b>Plug the recorder into the PC with its USB cable.</b> Wait until Windows has finished and the recorder's display shows it is connected.</li>
+    <li><b>Run Zadig as administrator.</b> Right-click <code>zadig-2.9.exe</code> and choose <b>Run as administrator</b>. Say <b>Yes</b> to the Windows prompt. If Zadig asks about checking for updates, either answer is fine.</li>
+    <li><b>Show all devices.</b> In Zadig's menu choose <kbd>Options</kbd> &rarr; <kbd>List All Devices</kbd>.</li>
+    <li><b>Pick your recorder in the drop-down list.</b> It is usually listed as <code>Hi-MD</code>, <code>Net MD</code> or the model name. Check that the two boxes under the list show a Sony ID that matches the table below
+        (the first box is <code>054C</code>, the second box is the model's ID).
+        <div class="card warn" style="margin-top:10px"><b>Be careful:</b> Zadig lists every USB device. Only change the recorder. Replacing the driver of a keyboard, mouse or other device can stop it working.</div></li>
+    <li><b>Choose WinUSB.</b> In the box to the right of the green arrow, use the up/down arrows until it says <code>WinUSB</code> (not libusb-win32, libusbK or WinUSB (v6...) variants).</li>
+    <li><b>Click <kbd>Replace Driver</kbd></b> (or <kbd>Install Driver</kbd>). Wait for the message <i>"The driver was installed successfully"</i>. It can take up to a minute. Then close Zadig.</li>
+    <li><b>Standard MiniDiscs too?</b> A Hi-MD recorder uses a <i>different</i> USB ID when it holds a standard (non-Hi-MD) disc. If you want to use standard discs, put a standard disc in the recorder <b>before</b> plugging it in, plug it in, and repeat steps 3 to 7 for that second entry.</li>
+    <li><b>Start MiniDisc Manager.</b> The recorder appears in the drop-down at the top right, with a green dot. If it does not, press the rescan button (the circular arrow).</li>
+  </ol>
+
+  <h2>Which entry is my recorder?</h2>
+  <p>Zadig shows the USB ID as two boxes. MiniDisc Manager recognises any Sony Hi-MD recorder in Hi-MD mode, and these standard-disc (NetMD) models. Only the two marked <span class="tag t">tested</span> have been tried by the author.</p>
+  <table>
+    <tr><th>Model</th><th>Hi-MD mode (Hi-MD disc inside)</th><th>NetMD mode (standard disc inside)</th></tr>
+    <tr><td>Sony MZ-NH700 <span class="tag t">tested</span></td><td><code>054C : 0185</code></td><td><code>054C : 0184</code></td></tr>
+    <tr><td>Sony MZ-RH1 <span class="tag t">tested</span></td><td><code>054C : 0287</code></td><td><code>054C : 0286</code></td></tr>
+    <tr><td>Sony MZ-NH1</td><td><code>054C : 017F</code></td><td><code>054C : 017E</code></td></tr>
+    <tr><td>Sony MZ-NH3D</td><td><code>054C : 0181</code></td><td><code>054C : 0180</code></td></tr>
+    <tr><td>Sony MZ-NH900</td><td><code>054C : 0183</code></td><td><code>054C : 0182</code></td></tr>
+    <tr><td>Sony MZ-NH600 / NH600D</td><td><code>054C : 0187</code></td><td><code>054C : 0186</code> / <code>0187</code></td></tr>
+    <tr><td>Sony MZ-DH10P</td><td><code>054C : 01EA</code></td><td><code>054C : 01E9</code></td></tr>
+    <tr><td>Sony MZ-RH10</td><td><code>054C : 021A</code></td><td><code>054C : 0219</code></td></tr>
+    <tr><td>Sony MZ-RH910 / RH710</td><td><code>054C : 021C</code></td><td><code>054C : 021B</code></td></tr>
+    <tr><td>Sony DS-HMD1</td><td><code>054C : 023D</code></td><td><code>054C : 023C</code></td></tr>
+  </table>
+  <p style="color:var(--muted)">Other Sony Hi-MD models and many older NetMD recorders (MZ-N, MZ-NE and others, plus some Aiwa, Sharp, Kenwood and Panasonic units) are recognised too, but have not been tested. If yours is not in the list, pick the entry that shows <code>054C</code> and is named like your recorder.</p>
+
+  <h2>If something does not work</h2>
+  <details><summary>The recorder is not in Zadig's list</summary>
+    Make sure <b>Options &rarr; List All Devices</b> is ticked. Unplug and re-plug the recorder, wait ten seconds, and press <b>Options &rarr; List All Devices</b> twice to refresh. Try another USB port or cable (some cables are charge-only).</details>
+  <details><summary>The recorder is in Zadig's list, but the app says "No recorder found"</summary>
+    Check that the driver shown for the recorder in Zadig (left box) is now <b>WinUSB</b>. Close SonicStage and any other program that uses the recorder. Press the rescan button in the app. A recorder with a standard disc needs its own entry (step 8).</details>
+  <details><summary>"Access denied" or "could not talk to the recorder"</summary>
+    Only one program can use the recorder at a time. Close every other program that uses it (including a second copy of MiniDisc Manager), unplug and re-plug the recorder, and rescan.</details>
+  <details><summary>The recorder says "PC" or shows no disc, or Windows says the USB device is not recognised</summary>
+    Unplug the recorder, remove the disc, put it back, and plug the recorder in again. Wait until its display settles before you start the app.</details>
+  <details><summary>I want to undo this and get my drive letter back</summary>
+    Open <b>Device Manager</b> (right-click the Start button). Under <b>Universal Serial Bus devices</b> find your recorder (it may be named <code>Hi-MD</code> or <code>Net MD</code>), right-click it, choose <b>Uninstall device</b>, tick <b>Attempt to remove the driver for this device</b>, and confirm. Unplug and re-plug the recorder: Windows installs its normal driver again.</details>
+  <details><summary>Is it safe? Will it harm my recorder or my discs?</summary>
+    Switching the driver only changes how Windows talks to the recorder; it does not change the recorder or what is on the disc. Even so, MiniDisc Manager can <b>write to and erase</b> discs. Copy any recordings you cannot replace to your PC (Save to PC...) before you edit a disc, and do not unplug the recorder while the app says it is working.</details>
+
+  <div class="card ok" style="margin-top:28px">
+    <b>Check it worked:</b> start MiniDisc Manager. A green dot and your recorder's name appear at the top right, and the disc's tracks are listed.
+  </div>
+
+  <footer>
+    MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos. Zadig is a separate program with its own licence. This page ships with the app (DRIVER-SETUP.html) and also opens from the Start Menu and from the "No recorder found" screen.
+  </footer>
+</main>
+</body>
+</html>

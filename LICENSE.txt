@@ -1,0 +1,41 @@
+MiniDisc Manager - licence for the author's own code (Copyright (c) 2026 Vinny Powell)
+====================================================
+
+See THIRD-PARTY-NOTICES.txt for everything else.
+
+The code written for MiniDisc Manager is split in two, because part of it runs together with GPL-licensed libraries:
+
+1. The Python program and the window
+   (himd_app.py, himd_dev.py, himd_fs.py, himd_disc.py, sonos.py, himd_manager.py, MiniDisc-Manager.bat, everything in ui\,
+   DRIVER-SETUP.html and README.txt)
+
+   MIT licence.
+   Copyright (c) 2026 Vinny Powell
+
+   Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy,
+   modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software
+   is furnished to do so, subject to the following conditions:
+
+   The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
+   LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
+   IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+2. The helper scripts that load the GPL-2.0 libraries himd-js, netmd-js and related packages
+   (helper\himd_helper.js, helper\netmd_helper.js, helper\atrac3.js, helper\atrac3_encode.js, helper\wav.js)
+
+   GNU General Public License, version 2 (GPL-2.0), because these scripts run together with, and depend on, GPL-2.0 libraries.
+   Copyright (c) 2026 Vinny Powell
+   The full text is in LICENSES\GPL-2.0.txt. The source of these scripts is the files themselves, which are included unminified.
+
+The two parts run as separate programs: the Python program starts the helper scripts as separate processes (runtime\node.exe) and
+exchanges text messages with them.
+
+No warranty. MiniDisc Manager can write to and erase MiniDiscs. It has been tested on a Sony MZ-NH700 and an MZ-RH1 only. Copy any
+recordings you cannot replace to your PC before editing a disc. Use it at your own risk.
+
+MiniDisc Manager is not affiliated with, authorised or endorsed by Sony or Sonos. "Sony", "MiniDisc", "Hi-MD", "NetMD", "ATRAC"
+and "Sonos" are trademarks of their owners and are used only to describe what the program works with.
