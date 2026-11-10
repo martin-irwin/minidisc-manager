@@ -94,6 +94,7 @@ function rawEncodeAtrac3Plus(runtimeDir, wavPath, frameBytes = 2048, onProgress 
 // ---------------------------------------------------------------------------------------------------------------------------
 const HEADROOM_TARGET = 0.985;
 const HEADROOM_PASSES = 2;
+const AT3P_OVERSHOOT = 1.045;           // ATRAC3+ output peak / input peak: 1.028 measured on a full-scale track, 17 tracks, Hi-SP, 2026-11-10 (LP2 / LP4 are not pre-lowered: not measured)
 
 // Loudest sample (1.0 = full scale) of `bytes` (a WAV or OMA file) decoded to 32-bit float by ffmpeg, so nothing is clipped.
 // onProgress(fraction), if given, with expectBytes (the decoded size to expect, as 32-bit float stereo): how much has been checked so far.
@@ -132,11 +133,45 @@ function scaledCopy(runtimeDir, wavPath, gain) {
     });
 }
 
+// Loudest sample (1.0 = full scale) of a WAV file, read straight from disk by ffmpeg (decoded to 32-bit float, nothing clipped).
+function filePeak(runtimeDir, wavPath, onProgress = null, expectBytes = 0) {
+    return new Promise((resolve, reject) => {
+        const exe = path.join(runtimeDir, 'ffmpeg.exe');
+        if (!fs.existsSync(exe)) return reject(new Error('The bundled decoder is missing.'));
+        const p = spawn(exe, ['-hide_banner', '-loglevel', 'error', '-i', wavPath, '-vn', '-f', 'f32le', '-acodec', 'pcm_f32le', 'pipe:1'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        let peak = 0, carry = Buffer.alloc(0), err = '', seen = 0, last = 0;
+        p.stdout.on('data', d => {
+            seen += d.length;
+            if (onProgress && expectBytes && Date.now() - last > 700) { last = Date.now(); try { onProgress(Math.min(0.99, seen / expectBytes)); } catch (e) { /* progress is only a courtesy */ } }
+            const b = carry.length ? Buffer.concat([carry, d]) : d;
+            const n = b.length - (b.length % 4);
+            for (let i = 0; i < n; i += 4) { const v = Math.abs(b.readFloatLE(i)); if (v > peak) peak = v; }
+            carry = b.subarray(n);
+        });
+        p.stderr.on('data', d => { err += d; });
+        p.on('error', reject);
+        p.on('close', code => code === 0 || peak > 0 ? resolve(peak) : reject(new Error('Could not check the level of the audio: ' + err.trim().slice(0, 200))));
+    });
+}
+
 // Runs `encode(wav)` (resolving with something `peakOf` can decode), lowering the source level and encoding again while the decoded
 // result would clip. Resolves with {result, gain} (gain 1: untouched).
-async function encodeWithHeadroom(runtimeDir, wavPath, encode, peakOf) {
+// pre = {overshoot, onProgress}: how much this encoder's output can exceed its input's peak (Hi-SP: measured at 1.028 on a full-scale
+// track; 1.045 is used). The source is measured FIRST (about a second) and a source that would clip is turned down before the first encode,
+// so the usual loud track is encoded once instead of twice. The check after the encode stays as the safety net (a second encode only
+// if the guess was too small).
+async function encodeWithHeadroom(runtimeDir, wavPath, encode, peakOf, pre = null) {
     let gain = 1, src = wavPath, temp = null;
     try {
+        if (pre) {
+            let bytes = 0;
+            try { bytes = Math.max(0, fs.statSync(wavPath).size - 44) * 2; } catch (e) { /* no estimate: no progress */ }          // the float decode is twice the 16-bit size
+            const peak = await filePeak(runtimeDir, wavPath, pre.onProgress, bytes);
+            if (peak * pre.overshoot > 0.999) {
+                gain = HEADROOM_TARGET / (peak * pre.overshoot);
+                src = temp = await scaledCopy(runtimeDir, wavPath, gain);
+            }
+        }
         let result = await encode(src, 0);
         for (let pass = 0; pass < HEADROOM_PASSES; pass++) {
             const peak = await peakOf(result, pass);
@@ -170,7 +205,8 @@ async function encodeAtrac3Plus(runtimeDir, wavPath, kind = 'at3p', onProgress =
     try { seconds = Math.max(0, fs.statSync(wavPath).size - 44) / 176400; } catch (e) { /* no estimate: no progress */ }
     const tell = (step, pass) => onProgress ? frac => onProgress({ step, pass, frac }) : null;
     const { result, gain } = await encodeWithHeadroom(runtimeDir, wavPath, (w, pass) => rawEncodeAtrac3Plus(runtimeDir, w, fmt.frame, tell('encoding', pass)),
-        (enc, pass) => decodedPeak(runtimeDir, 'oma', Buffer.concat([enc.header, enc.frames]), tell('checking', pass), seconds * 44100 * 2 * 4));
+        (enc, pass) => decodedPeak(runtimeDir, 'oma', Buffer.concat([enc.header, enc.frames]), tell('checking', pass), seconds * 44100 * 2 * 4),
+        { overshoot: AT3P_OVERSHOOT, onProgress: tell('checking', 0) });
     result.gain = gain;
     return result;
 }

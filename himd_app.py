@@ -27,6 +27,7 @@ import backup_data
 import catalogue
 import cd_audio
 import clone_disc
+import convert_disc
 import groupart
 import copies
 import cover_search
@@ -54,7 +55,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.26.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.27.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -130,7 +131,7 @@ except ImportError:
     _BUILTIN_ACOUSTID_KEY = ''
 
 
-class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
+class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
           sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin):
     def __init__(self):
         self._window = None
@@ -560,7 +561,7 @@ class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin,
 # Everything that changes a disc, rips, records, clones or saves needs a valid license or a running trial (paid edition only). Looking at a
 # disc and playing it stay free. The page shows the license sheet when it sees `licenseRequired` in an answer.
 GATED = ('upload', 'bc_open', 'radio_start', 'bc_add', 'cd_rip_add', 'yoto_rip_add', 'yoto_send', 'edit_run', 'clone_read', 'clone_write', 'delete_tracks', 'rename_track', 'move_track',
-         'rename_group', 'make_group', 'make_groups', 'release_group', 'add_to_group', 'rename_disc', 'undo', 'set_clock', 'cover_set', 'cover_remove', 'label_save_disc', 'label_remove', 'format_disc', 'save_tracks', 'cd_burn_run', 'cd_burn_erase', 'cd_data_run', 'lyrics_save_disc', 'groupart_save_disc')
+         'rename_group', 'make_group', 'make_groups', 'release_group', 'add_to_group', 'rename_disc', 'undo', 'set_clock', 'cover_set', 'cover_remove', 'label_save_disc', 'label_remove', 'format_disc', 'convert_read', 'convert_write', 'save_tracks','cd_burn_run', 'cd_burn_erase', 'cd_data_run', 'lyrics_save_disc', 'groupart_save_disc')
 
 
 def _gate(fn):

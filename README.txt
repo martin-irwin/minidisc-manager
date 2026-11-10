@@ -214,6 +214,24 @@ Recording internet radio (Add tracks from Internet Radio...)
 - The station directory is only contacted when you search or start a station (the program also tells it which station you
   played, as radio-browser.info asks of players). Only record what you are entitled to copy for your own use; each station's terms apply.
 
+Converting a standard disc to Hi-MD (Convert to Hi-MD...)
+- For a standard (SP / LP) disc in a recorder that also uses Hi-MD (MZ-NH700, MZ-RH1 and so on). When such a disc with audio is
+  loaded, a note appears under the Recorder card saying the disc can be used as Hi-MD (nothing opens by itself; "Hide for this
+  disc" and "Never show" switch it off); the Convert group in Disc Management does the same at any time. Pre-recorded commercial
+  discs and write-protected discs are not offered.
+- Choose the format the tracks are written back in: Hi-SP (ATRAC3+ 256 kbps, the default), Hi-LP (64 kbps) or PCM (lossless). The
+  sheet shows the size of each against about how much the disc holds as a Hi-MD disc (an 80-minute disc: roughly 300 MB). Hi-SP and
+  Hi-LP are a re-encode of the SP / LP audio and sound very slightly different. If the program still has the original file of a
+  track from when it added it to the disc, that is used instead of the disc's SP audio.
+- Steps: (1) every track is copied to %LOCALAPPDATA%\MiniDiscManager\convert as FLAC, with its title, artist, album, the groups
+  and the disc name; each file's playing time is checked against the disc. If any track cannot be read back (a recorder that cannot
+  send audio back and has no download for it) the job is refused and the disc is not touched; nothing is ever erased before all
+  tracks are safe on the PC. (2) The disc is erased and set up as Hi-MD (the recorder switches mode and reconnects, about a minute).
+  (3) The tracks are written back, the groups and disc name are put back, the disc is read again to check the track count and
+  lengths, and only then is the PC copy deleted. If anything goes wrong the PC copy is kept and the program offers to write it again
+  whenever an empty Hi-MD disc is loaded ("Write the saved tracks to this disc?"), also after closing the program.
+- This app cannot turn the Hi-MD disc back into a standard-format disc; the recorder's own menu can (it erases the disc).
+
 Cloning a disc (Clone disc...)
 - Works on a Hi-MD disc (to another Hi-MD disc) or a standard disc (to another standard disc); the sheet follows whichever disc is
   loaded. Before anything is read, the sheet lists every track with a tick box (all ticked): untick the ones you do not want on the
