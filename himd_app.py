@@ -54,7 +54,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.26.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.26.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -91,7 +91,7 @@ def recorder_year(model):
     if not years:
         return None
     lo, hi = min(years), max(years)
-    return str(lo) if lo == hi else '%d–%d' % (lo, hi)
+    return str(lo) if lo == hi else '%dâ€“%d' % (lo, hi)
 
 
 
@@ -386,7 +386,8 @@ class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin,
     ACOUSTID_BUILTIN_KEY = _BUILTIN_ACOUSTID_KEY   # the key itself is used by identify_tracks.IdentifyMixin
 
     # -- adding tracks (done by himd-js through helper/himd_helper.js) --
-    def _run_helper(self, cmd, args, on_event=None, helper=None):
+    def _run_helper(self, cmd, args, on_event=None, helper=None, idle_timeout=None):
+        """idle_timeout: seconds without any output after which the helper is judged stuck and ended (for writes, which normally answer in well under that)."""
         if not os.path.exists(NODE_EXE):
             return {'error': 'The bundled runtime is missing (%s). Re-copy the runtime folder.' % NODE_EXE}
         for d in self._devices:                       # make sure this process is not holding the recorder
@@ -403,7 +404,21 @@ class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin,
                                 creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         self._proc = proc
         result, error, other = None, None, []
+        last, stuck = [time.time()], []
+        if idle_timeout:
+            def watchdog():
+                while proc.poll() is None:
+                    time.sleep(2)
+                    if proc.poll() is None and time.time() - last[0] > idle_timeout:
+                        stuck.append(True)
+                        try:
+                            proc.kill()
+                        except OSError:
+                            pass
+                        return
+            threading.Thread(target=watchdog, daemon=True).start()
         for line in proc.stdout:
+            last[0] = time.time()
             try:
                 msg = json.loads(line)
             except ValueError:
@@ -417,6 +432,9 @@ class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin,
             elif 'error' in msg:
                 error = msg['error']
         proc.wait()
+        if stuck and result is None:
+            return {'error': 'The recorder stopped answering after %d seconds, so the operation was ended. The disc may be left half changed: '
+                             'unplug and replug the USB cable (and reseat the disc), then check the track list before doing anything else.' % idle_timeout}
         if error:
             return {'error': error}
         if result is None:

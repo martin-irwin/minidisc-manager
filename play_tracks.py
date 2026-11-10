@@ -106,6 +106,17 @@ class PlayMixin:
             except OSError:
                 pass
             t.join(10)
+        self._last_cancel = time.time()
+
+    _last_cancel = 0.0
+
+    def _settle_drive(self, seconds=12):
+        """After a read was stopped half way the drive is parked in the middle of a track. A write that starts at once (the copy-protection
+        sign-in of a delete) can stall it for good, so wait until `seconds` have passed since that stop."""
+        wait = self._last_cancel + seconds - time.time()
+        if wait > 0:
+            self.log('waiting %.1f s for the drive to settle before writing' % wait)
+            time.sleep(wait)
 
     def _drop_cache(self):
         """Forget finished tracks; adding or deleting tracks changes the audio file's layout."""

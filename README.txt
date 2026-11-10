@@ -520,6 +520,10 @@ Pre-recorded (commercial) standard discs
      (disc-covers folder in %LOCALAPPDATA%\MiniDiscManager). It shows in Disc Information with the note that it is not stored on the disc; Remove forgets
      it. It is also drawn on the Google TV lyric video. "Find online..." can pick a different cover by hand, and "Look up online" repeats the whole lookup
      for any standard disc.
+     If the automatic lookup finds nothing (a niche album), it also tries Discogs and compares titles loosely (brackets, "feat." and "The" are
+     ignored, then the lengths too). "Search by hand..." (beside the disc picture) lets you type the artist and album, lists matches from MusicBrainz and
+     Discogs, and fills the disc in from the one you pick. If its track names do not match but it has as many tracks as the disc, they are matched
+     track for track. On a Hi-MD disc the artist / album are written to the tracks that have none and the picture is stored on the disc.
   4. Then the lyrics are looked up for every track that has none, with the same progress sheet as the Lyrics button.
 - Nothing is written to the disc. Only the artist, album and track titles are sent (to MusicBrainz, the Cover Art Archive, iTunes / Deezer and the
   lyrics services), never audio, and only for a disc that reports as pre-recorded (or when you press a button). A disc that was found is not looked

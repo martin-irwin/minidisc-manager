@@ -318,6 +318,7 @@
   #player.loading #npStatus { color: var(--accent); font-weight: 600; }
   #player.loading #npStatus::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: npspin .8s linear infinite; }
   @keyframes npspin { to { transform: rotate(360deg); } }
+  .spin-s { display: inline-block; width: 12px; height: 12px; box-sizing: border-box; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: npspin .8s linear infinite; vertical-align: -1px; }
   /* the same note, big and in the middle of the window, so a read that takes a while cannot be missed (it does not block anything: clicks go through it) */
   #loadBox { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 90; display: none; align-items: center; gap: 16px; max-width: min(640px, 86vw); padding: 20px 28px;
     background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.45); pointer-events: none; font-size: 17px; font-weight: 600; }
@@ -488,6 +489,7 @@
           <img id="coverImg" class="hidden" alt="Disc image" title="The picture stored on this disc">
           <button id="coverAdd" class="cover-add" title="Store a picture on the disc; it shows here whenever the disc is loaded">+ Disc image</button>
           <button id="coverFind" class="cover-find" title="Suggest album art from free online databases (Cover Art Archive, iTunes, Deezer), using the disc name or the artist and album of the tracks">Find online…</button>
+          <button id="coverSearch" class="cover-find hidden" title="Search MusicBrainz and Discogs yourself by artist and album, pick the right release, and fill in the artist, album and album art from it.">Search by hand…</button>
           <button id="coverLookup" class="cover-find hidden" title="Standard discs: look the disc up online (MusicBrainz) for its artist, album and album art, kept on this PC. Only the words from the disc are sent.">Look up online</button>
           <div id="coverActions" class="cover-actions hidden"><button id="coverChange">Change</button><button id="coverRemove">Remove</button></div>
         <div id="labelBox" class="label-box hidden"><img id="labelImg" alt="Disc label" title="The sticker label stored on this disc. Click to see it larger."><span>Disc label</span></div>
@@ -978,10 +980,263 @@ async function load(noSync) {
   if (nowNum && !trackMap.has(nowNum)) stopPlayer(); else markNow();
   $('noTracks').classList.toggle('hidden', d.tracks.length > 0);
   show('content'); fitTracks();
+  setTimeout(() => maybeAskMissing(d), 700);                                               // a disc with no artists / albums, picture or lyrics: offer to look them up
   if (!netmd && !stagedShown && !uploading) {                                               // saved new tracks from an earlier split: say so once per run
     stagedShown = true;
     api().edit_staged_status().then(s => { if (s && s.staged && !uploading) openStagedWrite(); });
   }
+}
+
+// ---- A disc with details missing: offer to identify them ----------------------------------------------------------------------------------
+// After a disc is loaded: if its tracks lack artist / album names, it has no disc picture, or tracks have no lyrics, a window offers to look them up.
+// You tick what you want (or ignore all); the steps then run one after the other, each in its usual window. "Don't ask again for this disc" and
+// "Never ask" are kept on this PC. A pre-recorded commercial standard disc is looked up by the program on its own and is not asked about.
+const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
+const askedThisRun = new Set();
+let idQueue = [];
+let afterSheetClose = null;                                      // the steps carry on from here when a window is closed (see closeSheet)
+const lsRead = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
+const lsWrite = (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* not kept */ } };
+function discsIgnored() { try { return JSON.parse(lsRead(ASK_DISCS_KEY, '[]')) || []; } catch (e) { return []; } }
+function missingOf(d) {
+  const tracks = d.tracks || [];
+  return {
+    names: tracks.filter(t => !t.artist || !t.album || t.title === '(untitled)').map(t => t.number),
+    untitled: tracks.filter(t => t.title === '(untitled)').length,
+    seconds: tracks.reduce((a, t) => a + (t.seconds || 0), 0),
+    cover: netmd ? !d.pcCover : !d.cover,
+    lyrics: tracks.filter(t => !t.lyrics).map(t => t.number),
+    all: tracks.map(t => t.number),
+  };
+}
+function nextIdStep() {
+  if (!idQueue.length || uploading) return;
+  const step = idQueue.shift();
+  setTimeout(() => {
+    if (uploading || $('modal').classList.contains('show')) return;
+    step();
+    setTimeout(() => { if (!$('modal').classList.contains('show')) nextIdStep(); }, 1800);        // a step that opened no window: go on to the next one
+  }, 300);
+}
+afterSheetClose = () => { if (idQueue.length) setTimeout(nextIdStep, 200); };
+function maybeAskMissing(d) {
+  if (!d || !d.tracks || !d.tracks.length || uploading || askedThisRun.has(d.key)) return;
+  if (lsRead(ASK_OFF_KEY, '0') === '1' || discsIgnored().includes(d.key)) return;
+  if (d.commercial || $('modal').classList.contains('show') || (discPopup && discPopup.isConnected)) return;
+  const m = missingOf(d);
+  if (!m.names.length && !m.cover && !m.lyrics.length) return;
+  askedThisRun.add(d.key);
+  const n = d.tracks.length, plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
+  const rows = [];
+  const add = (key, title, sub, ticked) => {
+    const cb = el('input', { type: 'checkbox', checked: ticked !== false });
+    rows.push({ key, cb });
+    return el('label', { className: 'file', style: 'grid-template-columns:auto 1fr;gap:10px;align-items:start;cursor:pointer' }, cb,
+      el('span', {}, el('b', { textContent: title }), el('div', { className: 'meta', style: 'white-space:normal', textContent: sub })));
+  };
+  const list = el('div', { className: 'filelist' });
+  const untitledAll = m.untitled >= 0.8 * n;                       // no titles to search with: only the audio itself can say what the tracks are
+  if (untitledAll) {
+    list.append(add('listen', 'Listen to the tracks to find out what they are',
+      'None of the tracks has a title, so there is nothing to search by. The program can identify them from the audio (AcoustID): each track is read from the recorder once, which takes about ' + Math.max(1, Math.round(m.seconds / 60)) + ' minutes for this disc. Then it looks up the album, picture and lyrics. You can press Stop at any time.'));
+  } else if (m.names.length) list.append(add('names', 'Titles, artists and albums', plural(m.names.length, 'track') + ' of ' + n + ' have no artist or album (or no title). Searches the album online by the track lengths.'));
+  if (m.cover && !untitledAll) list.append(add('cover', 'Disc picture', netmd ? 'No album art is kept for this disc. Suggests covers from free online sources; kept on this PC only.' : 'No picture is stored on this disc. Suggests covers from free online sources; you choose whether to store one on the disc.'));
+  if (m.lyrics.length && !untitledAll) list.append(add('lyrics', 'Lyrics', plural(m.lyrics.length, 'track') + ' of ' + n + ' have no lyrics. Searches online lyric services by artist and title.'));
+  const never = el('input', { type: 'checkbox' }), thisDisc = el('input', { type: 'checkbox' });
+  const opt = (cb, text) => el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px;color:var(--muted)' }, cb, el('span', { textContent: text }));
+  const remember = () => {
+    if (never.checked) lsWrite(ASK_OFF_KEY, '1');
+    else if (thisDisc.checked) { const a = discsIgnored().filter(k => k !== d.key); a.push(d.key); lsWrite(ASK_DISCS_KEY, JSON.stringify(a.slice(-300))); }
+  };
+  const run = auto => {
+    remember();
+    let chosen = rows.filter(r => r.cb.checked).map(r => r.key);
+    closeSheet();
+    if (!chosen.length) return;
+    if (chosen.includes('listen')) chosen = ['listen', 'names', 'cover', 'lyrics'];      // once the tracks are named the rest can follow
+    if (auto) { runAutoIdentify(chosen, m); return; }
+    idQueue = [];
+    if (chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('listen', false); });
+    if (chosen.includes('names') && !chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('album'); });
+    if (chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('album'); });
+    if (chosen.includes('cover')) idQueue.push(() => openCoverFinder());
+    if (chosen.includes('lyrics')) idQueue.push(() => lyrFindAllRun(chosen.includes('listen') ? [...trackMap.keys()] : m.lyrics));
+    nextIdStep();
+  };
+  const goAuto = el('button', { className: 'primary', textContent: 'Identify automatically', title: 'Looks everything up and fills it in without asking, showing what is happening', onclick: () => run(true) });
+  const goStep = el('button', { textContent: 'Let me choose each result', title: 'Opens the usual search windows one after another so you pick the album, the picture and the lyrics yourself', onclick: () => run(false) });
+  openSheet(el('h2', { textContent: 'This disc is missing some details' }),
+    el('div', { className: 'sub', textContent: 'Would you like the program to look them up online? Untick anything you do not want. Only the track names, lengths and album text are sent to the lookup services.' }),
+    list, opt(thisDisc, 'Don\u2019t ask again for this disc'), opt(never, 'Never ask me about missing details (turn this off)'),
+    el('div', { className: 'row' }, el('button', { textContent: 'Ignore all', onclick: () => { remember(); idQueue = []; closeSheet(); } }), goStep, goAuto));
+  floatSheet(true);                                              // movable by its title, and a stray click outside does not close it (only the buttons and the cross do)
+}
+
+
+// The automatic run: one movable window that shows each step as it happens (a spinner and the seconds so far), then the result of each.
+async function runAutoIdentify(chosen, m) {
+  if (uploading) return;
+  const lines = el('div', { className: 'filelist' }), setters = {};
+  const addLine = (key, label) => {
+    const chip = el('span', { className: 'chip', textContent: '·', style: 'min-width:22px;text-align:center' }), txt = el('span', { textContent: label + ' – waiting' });
+    lines.append(el('div', { className: 'file', style: 'grid-template-columns:auto 1fr' }, chip, txt));
+    let timer = 0, t0 = 0, now = '';
+    const tick = () => { txt.textContent = label + ' – ' + now + (t0 ? ' (' + Math.floor((Date.now() - t0) / 1000) + ' s)' : ''); };
+    setters[key] = {
+      busy: text => { now = text; if (!t0) { t0 = Date.now(); chip.textContent = ''; chip.append(el('i', { className: 'spin-s' })); } tick(); if (!timer) timer = setInterval(tick, 500); },
+      done: (mark, text) => { clearInterval(timer); timer = 0; chip.textContent = mark; txt.textContent = label + ' – ' + text; },
+    };
+  };
+  const idSteps = chosen.filter(k => k !== 'lyrics');
+  if (chosen.includes('listen')) addLine('listen', 'Listening to the tracks');
+  if (chosen.includes('names')) addLine('names', 'Titles, artists and albums');
+  if (chosen.includes('cover')) addLine('cover', 'Disc picture');
+  if (chosen.includes('lyrics')) addLine('lyrics', 'Lyrics');
+  if (!netmd && (chosen.includes('lyrics') || keepOn())) addLine('disc', 'Saving on the disc');      // a Hi-MD disc keeps the lyrics file and the track list too
+  const close = el('button', { textContent: 'Working…', disabled: true, onclick: closeSheet });
+  const stop = el('button', { textContent: 'Stop listening', title: 'Ends the listening early; what was identified so far is kept', onclick: () => { stop.disabled = true; api().edit_cancel(); } });
+  stop.style.display = chosen.includes('listen') ? '' : 'none';
+  openSheet(el('h2', { textContent: 'Identifying this disc' }),
+    el('div', { className: 'sub', textContent: 'The program is looking things up online and filling them in. Only the track names and lengths are sent. You can move this window; it closes by itself when you press Close.' }),
+    lines, el('div', { className: 'row' }, stop, close));
+  floatSheet(true);
+  uploading = true;                                                  // nothing else touches the recorder while this runs
+  const idle = () => { uploading = false; stop.style.display = 'none'; close.disabled = false; close.textContent = 'Close'; };
+  if (chosen.includes('listen')) {                                   // the tracks have no titles: listen to them first, then everything else can use the names
+    const allNums = [...trackMap.keys()].sort((a, b) => a - b);
+    if (netmd && !(await askPatch())) setters.listen.done('–', 'skipped: this recorder can only send its audio with the experimental download');
+    else {
+      setters.listen.busy('starting…');
+      let named = 0;
+      window.onEditProgress = e => {
+        if (e.phase === 'reading') setters.listen.busy('reading track ' + (e.n + 1) + ' of ' + e.count + ' from the recorder' + (e.total ? ' (' + Math.round(100 * e.done / e.total) + '%)' : '') + '…');
+        else if (e.phase === 'preparing') setters.listen.busy('identifying track ' + (e.n + 1) + ' of ' + e.count + ' from the audio (fingerprint)…');
+        else if (e.phase === 'result' && e.res && e.res.matches && e.res.matches.length && e.res.matches[0].score >= 0.75) { named++; }
+      };
+      let lr = null;
+      try { lr = await api().identify_tracks(current, allNums, !!allowedPatch(), false); } catch (e) { lr = { error: String(e) }; }
+      window.onEditProgress = null; stop.style.display = 'none';
+      if (!lr || lr.error) setters.listen.done('✗', (lr && lr.error) || 'the listening failed');
+      else {
+        const items = [];
+        for (const res of lr.results || []) {
+          const mt = (res.matches || [])[0];
+          if (!mt || mt.score < 0.75 || !mt.title) continue;                      // only confident matches are used
+          items.push({ number: res.number, title: mt.title, artist: mt.artist || '', album: mt.album || '' });
+        }
+        if (items.length) {
+          const r1 = await api().rename_tracks_each(current, items);
+          if (!r1.error && netmd) await api().set_netmd_details(current, items.map(x => ({ number: x.number, artist: x.artist, album: x.album })));
+          if (r1.error) setters.listen.done('✗', 'could not write the names: ' + r1.error);
+          else setters.listen.done('✓', 'identified ' + items.length + ' of ' + allNums.length + ' tracks from their audio' + (lr.cancelled ? ' (stopped early)' : ''));
+        } else setters.listen.done('–', lr.cancelled ? 'stopped before anything was identified' : 'the audio did not match any known recording with enough confidence, so nothing was changed');
+        await load(true);                                            // the new names show; the album, picture and lyrics searches below use them
+      }
+    }
+  }
+  window.onAutoIdentify = e => {
+    const n = setters.names, c = setters.cover;
+    if (e.stage === 'search') { if (n) n.busy('searching for the album online (MusicBrainz)…'); if (!n && c) c.busy('searching for the album online…'); }
+    else if (e.stage === 'found') { const t = 'found “' + e.album + '” by ' + (e.artist || 'unknown') + ' (' + e.matched + ' of ' + e.total + ' tracks match)'; if (n) n.busy(t + ', filling in…'); else if (c) c.busy(t); }
+    else if (e.stage === 'names') { if (n) n.busy('writing artist and album for ' + e.count + ' tracks…'); }
+    else if (e.stage === 'cover') { if (n) n.busy('almost done…'); if (c) c.busy('downloading the album art…'); }
+    else if (e.stage === 'coverstore') { if (c) c.busy('checking the picture and storing it on the disc…'); }
+  };
+  let found = null, failed = '', hint = null;
+  if (idSteps.length) {
+    const r = await api().auto_identify(current, idSteps, (curDisc && curDisc.title) || '');
+    window.onAutoIdentify = null;
+    if (r.error) { failed = r.error; if (setters.names) setters.names.done('✗', r.error); if (setters.cover) setters.cover.done('✗', r.error); }
+    else if (!r.found) {
+      const t = 'no release on MusicBrainz or Discogs matched most of the tracks, so nothing was changed. Use “Search by hand…” (beside the disc picture) to pick one yourself.';
+      if (setters.names) setters.names.done('–', t); if (setters.cover) setters.cover.done('–', 'not looked for (no album was found).');
+    } else {
+      found = r;
+      if (setters.names) setters.names.done(r.namesSet || netmd ? '✓' : '–', (netmd ? 'found “' + r.album + '” by ' + r.artist + ' (' + r.matched + ' of ' + r.total + ' tracks); kept on this PC'
+        : r.namesError ? 'could not be written: ' + r.namesError : r.namesSet ? 'artist and album written for ' + r.namesSet + ' tracks (“' + r.album + '” by ' + r.artist + ')' : 'nothing needed filling in'));
+      if (setters.cover) setters.cover.done(r.cover && !/^(failed|none)/.test(r.cover) ? '✓' : '–', r.cover ? (/^none/.test(r.cover) ? 'no picture found online' : r.cover) : 'not changed');
+    }
+    await load(true);                                                // show what was filled in
+  }
+  window.onAutoIdentify = null;
+  if (chosen.includes('lyrics')) {
+    const nums = [...trackMap.keys()].sort((a, b) => a - b).filter(k => !trackMap.get(k).lyrics);
+    if (!nums.length) setters.lyrics.done('✓', 'every track already has lyrics');
+    else if (nums.every(k => (trackMap.get(k) || {}).title === '(untitled)')) setters.lyrics.done('–', 'no track has a title yet, so there is nothing to search for');
+    else {
+      uploading = false;                                             // the lyrics search does not use the recorder
+      let ok = 0, miss = 0;
+      window.onIdentifyLyrics = e => {
+        if (e.stage === 'searching' || e.stage === 'retry') setters.lyrics.busy('track ' + (e.index + 1) + ' of ' + e.total + ': ' + e.title + ' — searching… (found ' + e.found + ', no match ' + e.missed + ')');
+        ok = e.found; miss = e.missed;
+      };
+      setters.lyrics.busy('starting the search…');
+      const lr = await lyrFindAllRun(nums, true);
+      window.onIdentifyLyrics = null;
+      hint = lr && lr.hint && (lr.hint.artist || lr.hint.album) ? lr.hint : null;          // an empty answer ({}) is no answer: the lyric services are asked separately below
+      const have = [...trackMap.values()].filter(t => t.lyrics).length;
+      setters.lyrics.done(have ? '✓' : '–', have ? 'found lyrics for ' + ok + ' of ' + nums.length + ' tracks' + (miss ? ' (no confident match for ' + miss + ')' : '') : 'no lyrics found with a confident match');
+    }
+  }
+  if (!found && idSteps.length && !failed && !hint) {                // the lyrics may already be on the tracks, so ask the lyric services who the songs are by
+    addLine('hint', 'Asking the lyrics services');
+    setters.hint.busy('checking which artist and album the songs belong to…');
+    try { const hr = await api().lyrics_hint(); hint = hr && hr.hint && (hr.hint.artist || hr.hint.album) ? hr.hint : null; } catch (e) { hint = null; }
+    setters.hint.done(hint ? '✓' : '–', hint ? 'the songs look like ' + (hint.album ? '“' + hint.album + '”' : 'an unnamed album') + ' by ' + (hint.artist || 'an unknown artist') : 'no clear answer, so no suggestion');
+  }
+  if (hint && !found && idSteps.length && (hint.artist || hint.album) && !failed) {      // the disc's own names found nothing, but the lyrics say who it is: offer to search again with that
+    const what = (hint.album ? '“' + hint.album + '”' : 'this disc') + (hint.artist ? ' by ' + hint.artist : '');
+    const ask = el('div', { className: 'notice' }, el('b', { textContent: 'The lyrics suggest this disc is ' + what + '.' }),
+      el('div', { textContent: 'Search for that album now to fill in the artist, album and picture?' }));
+    const yes = el('button', { className: 'primary', textContent: 'Search now' }), no = el('button', { textContent: 'Not now' });
+    ask.append(el('div', { className: 'row', style: 'margin-top:10px' }, no, yes));
+    lines.after(ask);
+    const choice = await new Promise(res => { yes.onclick = () => res(true); no.onclick = () => res(false); });
+    ask.remove();
+    if (choice) {
+      uploading = true;
+      window.onAutoIdentify = e => {
+        const n = setters.names, c = setters.cover;
+        if (e.stage === 'search') { if (n) n.busy('searching for ' + what + ' online…'); if (!n && c) c.busy('searching for the album online…'); }
+        else if (e.stage === 'found') { const t = 'found “' + e.album + '” by ' + (e.artist || 'unknown') + ' (' + e.matched + ' of ' + e.total + ' tracks match)'; if (n) n.busy(t + ', filling in…'); else if (c) c.busy(t); }
+        else if (e.stage === 'names') { if (n) n.busy('writing artist and album for ' + e.count + ' tracks…'); }
+        else if (e.stage === 'cover') { if (n) n.busy('almost done…'); if (c) c.busy('downloading the album art…'); }
+        else if (e.stage === 'coverstore') { if (c) c.busy('checking the picture and storing it on the disc…'); }
+      };
+      const r2 = await api().auto_identify(current, idSteps, (curDisc && curDisc.title) || '', hint);
+      window.onAutoIdentify = null;
+      if (r2.error) { if (setters.names) setters.names.done('✗', r2.error); if (setters.cover) setters.cover.done('✗', r2.error); }
+      else if (!r2.found) { const t = 'still no release matched most of the tracks, so nothing was changed.'; if (setters.names) setters.names.done('–', t); if (setters.cover) setters.cover.done('–', 'not looked for (no album was found).'); }
+      else {
+        found = r2;
+        if (setters.names) setters.names.done('✓', netmd ? 'found “' + r2.album + '” by ' + r2.artist + ' (' + r2.matched + ' of ' + r2.total + ' tracks); kept on this PC' : r2.namesSet ? 'artist and album written for ' + r2.namesSet + ' tracks (“' + r2.album + '” by ' + r2.artist + ')' : 'nothing needed filling in');
+        if (setters.cover) setters.cover.done(r2.cover && !/^(failed|none)/.test(r2.cover) ? '✓' : '–', r2.cover ? (/^none/.test(r2.cover) ? 'no picture found online' : r2.cover) : 'not changed');
+      }
+      await load(true);
+      uploading = false;
+    }
+  }
+  if (setters.disc) {                                                // Hi-MD: what was found is also kept on the disc itself
+    uploading = true;
+    const parts = [];
+    let bad = false;
+    const ly = [...trackMap.values()].filter(t => t.lyrics).length;
+    if (chosen.includes('lyrics') && ly) {
+      setters.disc.busy('writing the lyrics of ' + ly + ' tracks to the disc (LYRICS.TXT)…');
+      const r = await api().lyrics_save_disc(current);
+      if (r.error) { bad = true; parts.push('lyrics not saved: ' + r.error); } else parts.push('lyrics for ' + r.saved + ' tracks');
+    }
+    if (keepOn()) {
+      setters.disc.busy('updating the track list on the disc (TRACKS.CSV)…');
+      const r = await api().tracklist_sync(current);
+      if (r.error) { bad = true; parts.push('track list not updated: ' + r.error); } else if (!r.skipped) parts.push('track list');
+    }
+    uploading = false;
+    await load(true);                                                // the disc's own copies are now marked as up to date
+    setters.disc.done(bad ? '✗' : parts.length ? '✓' : '–', parts.length ? 'saved on the disc: ' + parts.join(', ') + '. The names and picture were written to the disc as they were found.' : 'nothing more to save');
+  }
+  idle();
+  if (failed) toast(failed, true);
 }
 
 // ---- Playing tracks --------------------------------------------------------
@@ -1536,6 +1791,7 @@ function showCover(src, available, pcSrc) {
   $('coverAdd').classList.toggle('hidden', !!src || netmd);
   $('coverFind').classList.toggle('hidden', !!shown);            // the online search is only offered while there is no picture
   $('coverLookup').classList.toggle('hidden', !netmd || !!pcSrc);
+  $('coverSearch').classList.remove('hidden');
   $('coverActions').classList.toggle('hidden', !(src || (netmd && pcSrc)));
   $('coverChange').classList.toggle('hidden', netmd);
   if (shown) { $('coverImg').src = shown; $('coverImg').title = src ? 'The picture stored on this disc' : 'Album art found online, kept on this PC (it is not stored on the disc). Click to search for another.'; }
@@ -1572,7 +1828,7 @@ window.onDiscLookup = async m => {
     await lyricsNow(text);
   }
   else if (m.stage === 'none') {
-    const text = 'This disc was not found online. Use “Find online…” to pick the album art, or type the artist and album by hand.';
+    const text = 'This disc was not found online (MusicBrainz and Discogs). Use “Search by hand…” to pick the album yourself.';
     setLookupNote(text); popup(text + ' Now looking for lyrics from the track titles…');
     await lyricsNow(text);
   } else if (m.stage === 'done') {
@@ -1589,10 +1845,55 @@ $('coverLookup').addEventListener('click', async () => {
   const r = await api().disc_lookup(current);
   $('coverLookup').disabled = false;
   if (r.error) { setLookupNote(r.error, true); return; }
-  if (!r.found) { setLookupNote('This disc was not found online. Use “Find online…” to pick the album art, or type the artist and album by hand.'); return; }
+  if (!r.found) { setLookupNote('This disc was not found online (MusicBrainz and Discogs). Use “Search by hand…” to pick the album yourself.'); return; }
   const text = 'Found online: ' + [r.artist, r.album].filter(Boolean).join(' – ') + ' (' + r.matched + ' of ' + r.total + ' tracks matched' + (r.cover ? ', album art added' : '') + ').';
   await load(true); setLookupNote(text);
 });
+// "Search by hand…": the user types the artist and album, picks a release from MusicBrainz / Discogs, and the disc is filled in from it (disc_lookup.py).
+async function openDiscSearch() {
+  if (uploading) return;
+  const first = [...trackMap.values()];
+  const pick = k => (first.find(t => t[k]) || {})[k] || '';
+  const guess = !pick('album') && curDisc && curDisc.title ? curDisc.title.split(/\s+[-–—:]\s+|\s{2,}/) : [];
+  const inA = el('input', { type: 'text', value: pick('artist') || (guess.length > 1 ? guess[0].trim() : ''), placeholder: 'Artist', style: 'width:100%;padding:8px;box-sizing:border-box' });
+  const inB = el('input', { type: 'text', value: pick('album') || (guess.length > 1 ? guess.slice(1).join(' ').trim() : (guess[0] || '')), placeholder: 'Album', style: 'width:100%;padding:8px;box-sizing:border-box' });
+  const status = el('div', { className: 'sub', style: 'margin:6px 0', textContent: 'Type the artist and / or the album. MusicBrainz and Discogs are both searched. Only these words are sent.' });
+  const list = el('div', { style: 'display:grid;gap:4px;max-height:260px;overflow:auto;margin:6px 0' });
+  const go = el('button', { className: 'primary', textContent: 'Search' });
+  const busy = on => { go.disabled = on; list.querySelectorAll('button').forEach(b => { b.disabled = on; }); };
+  const use = async x => {
+    busy(true); uploading = true;
+    status.className = 'sub'; status.textContent = 'Filling the disc in from “' + x.title + '”' + (netmd ? '…' : ' and writing it to the disc…');
+    let r;
+    try { r = await api().disc_apply(current, x.source, x.id, ['names', 'cover']); } finally { uploading = false; }
+    busy(false);
+    if (r.error) { status.className = 'notice warn'; status.textContent = r.error; return; }
+    await load(true);
+    const text = '“' + r.album + '”' + (r.artist ? ' by ' + r.artist : '') + ': ' + r.matched + ' of ' + r.total + ' tracks ' + (r.byPosition ? 'matched track for track (their names did not match)' : 'matched')
+      + (r.cover && !/^(failed|none)/.test(r.cover) ? ', album art ' + r.cover : r.cover ? ', album art: ' + r.cover : '') + '.';
+    setLookupNote(text); closeSheet(); toast(text, false, 7000);
+  };
+  go.onclick = async () => {
+    busy(true); status.className = 'sub'; status.textContent = 'Searching MusicBrainz and Discogs…';
+    const r = await api().disc_search(inA.value, inB.value);
+    busy(false); list.textContent = '';
+    if (r.error) { status.className = 'notice warn'; status.textContent = r.error; return; }
+    status.textContent = (r.releases.length ? 'Choose the release that matches your disc (' + r.tracks + ' tracks on it; releases with that many tracks are listed first):' : 'Nothing found. Try fewer words, or the artist only.')
+      + (r.notes.length ? ' ' + r.notes.join(' ') : '');
+    r.releases.forEach(x => list.append(el('div', { style: 'display:flex;gap:8px;align-items:center' },
+      el('span', { style: 'flex:1;min-width:0', textContent: x.title + ' — ' + (x.artist || 'unknown') + (x.date ? ' (' + x.date + ')' : '') + (x.country ? ' ' + x.country : '')
+        + (x.trackCount ? ', ' + x.trackCount + ' tracks' : '') + (x.format ? ', ' + x.format : '') + ' · ' + (x.source === 'discogs' ? 'Discogs' : 'MusicBrainz') }),
+      el('button', { textContent: 'Use this', onclick: () => use(x) }))));
+  };
+  [inA, inB].forEach(i => i.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); }));
+  openSheet(el('h2', { textContent: 'Search for this album' }), status,
+    el('div', { style: 'display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:center' }, inA, inB, go), list,
+    el('div', { className: 'sub', textContent: netmd ? 'What you choose is kept on this PC (a standard disc cannot store an artist or album); nothing is written to the disc.' : 'The artist and album are written to the tracks that have none, and the picture is stored on the disc (rehearsed first). Existing titles are never changed.' }),
+    el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
+  floatSheet(true);
+  if (inA.value || inB.value) go.click();
+}
+$('coverSearch').addEventListener('click', openDiscSearch);
 async function chooseCover() {
   if (netmd) { openCoverFinder(); return; }
   if (uploading) return;
@@ -3830,7 +4131,7 @@ $('export').addEventListener('click', async () => {
 // ---- Adding tracks -------------------------------------------------------
 let uploading = false;
 const sheet = $('sheet');
-const fmtSize = n => n < 1e6 ? Math.round(n / 1e3) + ' KB' : (n / 1e6).toFixed(1) + ' MB';
+const fmtSize = n => n < 1e6 ? Math.round(n / 1e3) + ' KB' : n < 1e9 ? (n / 1e6).toFixed(1) + ' MB' : (n / 1e9).toFixed(1) + ' GB';
 function el(tag, props, ...kids) {
   const e = document.createElement(tag); Object.assign(e, props || {}); e.append(...kids); return e;
 }
@@ -3862,6 +4163,7 @@ function closeSheet() {
   const editing = !!splitAudio;                                  // the split editor was dismissed (outside click, Escape): its working copy of the track is not needed any more
   stopSplitAudio(); if (editing) api().edit_discard();
   $('modal').classList.remove('show');
+  if (afterSheetClose) afterSheetClose();
 }
 
 async function startAdd(paths) {
@@ -6164,6 +6466,7 @@ async function lyrFindAllRun(nums, silent, auto) {
   if (!silent) openSheet(el('h2', { textContent: 'Finding lyrics' }), prog.what, prog.bar, tally, log, prog.stallBox);
   const marks = { synced: ['✓', 'Found, timed'], text: ['✓', 'Found, text only'], nomatch: ['–', 'No confident match'], busy: ['⚠', 'Services busy, skipped'] };
   window.onLyricsProgress = m => {
+    if (window.onIdentifyLyrics) window.onIdentifyLyrics(m);
     const who = '#' + m.number + ' ' + m.title + (m.artist ? ' — ' + m.artist : '');
     if (m.stage === 'disc') { prog.set(m.what, 0); return; }
     if (m.stage === 'searching' || m.stage === 'retry') {
@@ -6199,6 +6502,7 @@ async function lyrFindAllRun(nums, silent, auto) {
     }
     openLyrics(text);
   }
+  return r;                                                                     // the result, for the automatic identify window (it uses r.hint)
 }
 function openLyrics(note) {
   if (typeof note !== 'string') note = '';                                       // only a message to show, never a click event

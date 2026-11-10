@@ -370,9 +370,45 @@ class LyricsMixin:
         self._ly_put(t, c['syncedText'] or c['text'], {'lr': 'lrclib', 'ne': 'netease', 'ov': 'lyrics.ovh'}.get(c['source'], c['source']), synced=bool(c['syncedText']))
         return dict(self.lyrics_status(), ok=True)
 
+    @staticmethod
+    def _ly_hint(votes, matched):
+        """{artist, album}: the value most of the matched songs agree on (at least two songs, and at least 40 % of them)."""
+        hint = {}
+        for k in ('artist', 'album'):
+            if votes[k]:
+                top = max(votes[k], key=votes[k].get)
+                if votes[k][top] >= 2 and votes[k][top] >= 0.4 * matched:
+                    hint[k] = top
+        return hint
+
+    def lyrics_hint(self, numbers=None):
+        """Asks the lyrics services about up to 12 of the disc's songs (even ones that already have lyrics) and returns what they say the artist and album are:
+        {hint: {artist, album}}. Nothing is stored. Used to look the disc up again when its own track names found nothing."""
+        nums = [n for n in (numbers or [t['number'] for t in self._tracks]) if self._ly_track(n)]
+        step = max(1, len(nums) // 12)
+        votes, matched = {'artist': {}, 'album': {}}, 0
+        for n in nums[::step][:12]:
+            t = self._ly_track(n)
+            try:
+                cands = self._ly_candidates(t)
+            except (urllib.error.URLError, OSError, ValueError, TimeoutError):
+                continue
+            sure = [c for c in cands if self._ly_confident(c, t)]
+            if not sure:
+                continue
+            best = max(sure, key=lambda c: (c['gap'] <= 3, c['synced'], c['score']))
+            matched += 1
+            for k in ('artist', 'album'):
+                v = (best.get(k) or '').strip()
+                if v:
+                    votes[k][v] = votes[k].get(v, 0) + 1
+            time.sleep(0.6)
+        return {'ok': True, 'hint': self._ly_hint(votes, matched), 'matched': matched}
+
     def lyrics_find_all(self, numbers):
         """Looks up each listed track and keeps the result when it is a confident match. Returns what was found and what was not."""
         found, missed, skipped, failed = [], [], [], None
+        votes = {'artist': {}, 'album': {}}                                         # who the matched lyrics say the songs are by, and from which album
         todo = [n for n in (numbers or []) if self._ly_track(n)]
         def tell(i, t, stage):                                                      # live progress for the page: which track, and what happened to it
             if self._window:
@@ -421,6 +457,10 @@ class LyricsMixin:
             if best:
                 self._ly_put(t, best['syncedText'] or best['text'], {'lr': 'lrclib', 'ne': 'netease', 'ov': 'lyrics.ovh'}.get(best['source'], best['source']), synced=bool(best['syncedText']))
                 found.append(t['number'])
+                for k in ('artist', 'album'):
+                    v = (best.get(k) or '').strip()
+                    if v:
+                        votes[k][v] = votes[k].get(v, 0) + 1
                 tell(i, t, 'synced' if best['syncedText'] else 'text')
             else:
                 missed.append(t['number'])
@@ -431,7 +471,8 @@ class LyricsMixin:
         info = ''
         if disc and disc.get('found'):
             info = 'Disc found online: %s%s (%d of %d tracks matched).' % (disc.get('artist') or '', ' – ' + disc['album'] if disc.get('album') else '', disc['matched'], disc['total'])
-        return dict(self.lyrics_status(), found=found, missed=missed, failed=failed, discInfo=info, discChanged=bool(disc and disc.get('changed')))
+        hint = self._ly_hint(votes, len(found))                                     # what the lyrics services agree on: used to look the disc up again by artist / album
+        return dict(self.lyrics_status(), found=found, missed=missed, failed=failed, discInfo=info, discChanged=bool(disc and disc.get('changed')), hint=hint)
 
     # -- keeping them on the disc ------------------------------------------------------------------
     def lyrics_save_disc(self, index):

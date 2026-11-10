@@ -107,6 +107,7 @@ class DiscToolsMixin:
             return self._delete_netmd(numbers)
         with self._lock:
             self._drop_cache()
+            self._settle_drive()                           # a read stopped a moment ago leaves the drive mid-track; writing at once can stall it
             try:
                 dev = himd_dev.Device(self._devices[int(index)])
                 if not dev.capacity():
@@ -124,7 +125,7 @@ class DiscToolsMixin:
                 return {'error': 'Could not read the disc before deleting: %s. Nothing was deleted.' % exc}
 
             extra = self._secure_delete_args(numbers)
-            res = self._run_helper('delete', dict({'indexes': [n - 1 for n in numbers]}, **extra))
+            res = self._run_helper('delete', dict({'indexes': [n - 1 for n in numbers]}, **extra), idle_timeout=240)
             if 'error' in res:
                 return {'error': res['error']}
 
