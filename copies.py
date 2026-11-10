@@ -27,12 +27,15 @@ class CopiesMixin:
         """`index`: the copies list, when the caller looks up many tracks and has read it once already.
         `codec`: the track's recording mode on the disc now (SP / LP2 / LP4): a copy saved in another mode is a different recording."""
         mode = codec.split()[0] if codec else None
-        for c in reversed(self._copy_index() if index is None else index):                  # newest first
-            if c['title'] == title and abs(c['seconds'] - seconds) <= 1 and os.path.exists(os.path.join(COPIES_DIR, c['id'] + '.flac')):
+        best, gap = None, None
+        for c in reversed(self._copy_index() if index is None else index):                  # newest first, so on a tie the newest copy wins
+            d = abs(c['seconds'] - seconds)
+            if c['title'] == title and d <= 1 and os.path.exists(os.path.join(COPIES_DIR, c['id'] + '.flac')):
                 if mode and c.get('codec') and c['codec'] != mode:
                     continue
-                return c
-        return None
+                if gap is None or d < gap:                                                  # the copy whose length is closest: a changed version of a track (Fade & level) is a second or so longer
+                    best, gap = c, d
+        return best
 
     def _save_copies(self, items, fmt=None):
         if items:

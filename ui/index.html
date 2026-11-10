@@ -109,6 +109,10 @@
   .bcell > .card.collapsed { flex: 0 0 auto !important; min-height: 0 !important; }   /* a folded card is just its title, whatever height it was dragged to or would stretch to */
   .card.collapsed > .rs-h, .card.collapsed > .rs-c { display: none; }
   .bcell > .tracks { margin-top: 0; }
+  /* the splitter above the Tracks card: drag it to share the window's height between the cards above and the track list; the cards above then scroll inside if they are made shorter than their contents */
+  .vsplit { height: 18px; margin: -18px 0; position: relative; z-index: 3; cursor: row-resize; touch-action: none; user-select: none; }
+  .vsplit::after { content: ''; position: absolute; left: 42%; right: 42%; top: 7px; height: 4px; border-radius: 3px; background: var(--muted); opacity: .3; transition: opacity .15s, background .15s; }
+  .vsplit:hover::after, .vsplit.on::after { opacity: .9; background: var(--accent); }
   .cards-pill { position: relative; }
   .cards-pill > button { border: 0; background: transparent; padding: 0; font-weight: 600; }
   .cards-menu { position: absolute; top: calc(100% + 8px); right: 0; z-index: 40; min-width: 250px; padding: 10px 12px; display: grid; gap: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow); }
@@ -151,7 +155,7 @@
   /* Disc Management reads in rows of two: Arrange | Remove, Auto split & name | Identify, Clone | Copy out (one column when the card is narrow).
      The wrappers dissolve so the six groups sit straight in the grid, placed by the order below. */
   .tool-pair { display: contents; }
-  .g-add { order: 1; } .g-label { order: 2; } .g-arrange { order: 2; } .g-remove { order: 3; } .g-autosplit { order: 4; } .g-groups { order: 5; } .g-identify { order: 5; } .g-lyrics { order: 6; } .g-clone { order: 7; } .g-copyout { order: 8; } .g-check { order: 7; }
+  .g-add { order: 1; } .g-label { order: 2; } .g-arrange { order: 2; } .g-fade { order: 2; } .g-remove { order: 3; } .g-autosplit { order: 4; } .g-groups { order: 5; } .g-identify { order: 5; } .g-lyrics { order: 6; } .g-clone { order: 7; } .g-copyout { order: 8; } .g-check { order: 7; }
   @container (min-width: 440px) {
     .tool-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
@@ -175,6 +179,7 @@
   .tool-group > .eyebrow { color: var(--accent); font-size: 13px; font-weight: 750; letter-spacing: .1em; }      /* Arrange, Remove, Auto split, Identify, Clone, Copy out */
   .tool-buttons { display: flex; flex-wrap: wrap; gap: 7px; }
   .tool-buttons button { padding: 6px 11px; font-size: 13px; white-space: nowrap; }
+  .tool-buttons #del { min-width: 15ch; flex: 0 0 auto; overflow: visible; text-align: center; }      /* room for “Delete 128 tracks…” without cutting the number off */
   /* Rip Yoto Card and Send to Yoto Card share one line, as two smaller buttons of equal width */
   .tool-buttons .yoto-pair { display: flex; gap: 6px; }
   .tool-buttons .yoto-pair button { flex: 1 1 0; min-width: 0; padding: 4px 11px; font-size: 12px; text-align: left; overflow: hidden; text-overflow: ellipsis; }
@@ -308,6 +313,17 @@
   #player .np { min-width: 0; width: 230px; flex: none; }
   #player .np b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   #player .np span { display: block; color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* while a track is being read (before the sound starts): a spinner, a longer note in the accent colour and a running count of seconds, so it is clear something is happening */
+  #player.loading .np { width: 360px; }
+  #player.loading #npStatus { color: var(--accent); font-weight: 600; }
+  #player.loading #npStatus::before { content: ''; display: inline-block; width: 10px; height: 10px; margin-right: 7px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; vertical-align: -1px; animation: npspin .8s linear infinite; }
+  @keyframes npspin { to { transform: rotate(360deg); } }
+  /* the same note, big and in the middle of the window, so a read that takes a while cannot be missed (it does not block anything: clicks go through it) */
+  #loadBox { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); z-index: 90; display: none; align-items: center; gap: 16px; max-width: min(640px, 86vw); padding: 20px 28px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--accent); border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,.45); pointer-events: none; font-size: 17px; font-weight: 600; }
+  #loadBox.show { display: flex; }
+  #loadBox i { flex: none; width: 30px; height: 30px; border: 4px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: npspin .8s linear infinite; }
+  #loadBox small { display: block; margin-top: 4px; font-size: 13px; font-weight: 400; color: var(--muted); }
   #player button.skip { flex: none; width: 30px; height: 30px; padding: 0; border-radius: 50%; display: grid; place-items: center; font-size: 12px; line-height: 1; }
   #player select { flex: none; padding: 5px 8px; font-size: 12.5px; }
   tr.grp-head .grp-play { margin-left: 12px; padding: 2px 10px; font-size: 12px; border-radius: 12px; }
@@ -376,10 +392,10 @@
   .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
   .progress { height: 10px; border-radius: 99px; background: var(--chip); overflow: hidden; margin: 14px 0 6px; }
   .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
-  .disc-card { display: flex; flex-wrap: wrap; gap: 18px 48px; align-items: center; justify-content: center; container-type: inline-size; }
+  .disc-card { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; align-content: flex-start; justify-content: center; container-type: inline-size; }       /* tight gaps: the pictures use the card's width instead of leaving blank space */
   /* the disc picture and the cover share the card's width (56 % / 44 %) and follow it as the window is resized, within sensible limits */
-  :root { --pic-disc: clamp(110px, min(calc((100cqw - 48px) * .56), 52vh), 640px); --pic-cover: clamp(86px, min(calc((100cqw - 48px) * .44), 30vh), 420px); }   /* a wide card (other cards hidden or moved away) gets bigger pictures, but never more than the window height allows */
-  .disc-info { flex: 1 1 190px; min-width: 0; }
+  :root { --pic-disc: clamp(64px, min(calc((100cqw - 20px) * .58), 52vh), 640px); --pic-cover: clamp(50px, min(calc((100cqw - 20px) * .42), 30vh), 420px); }   /* a wide card (other cards hidden or moved away) gets bigger pictures, but never more than the window height allows */
+  .disc-info { flex: 1 1 150px; min-width: 0; }
   .cover-box { flex: none; width: var(--pic-cover); display: grid; gap: 6px; justify-items: center; }
   #coverImg { width: var(--pic-cover); height: var(--pic-cover); object-fit: cover; border-radius: 12px; border: 1px solid var(--line); box-shadow: 0 6px 16px rgba(0,0,0,.22); cursor: pointer; }
   .cover-add { width: var(--pic-cover); height: var(--pic-cover); border-radius: 12px; border: 1.5px dashed var(--line); background: transparent; color: var(--muted); cursor: pointer; font: inherit; }
@@ -521,10 +537,17 @@
             <button id="split" disabled title="Tick one track (PCM or ATRAC on a Hi-MD disc, or SP / LP on a standard disc); you can cut it at as many points as you like">Split…</button>
             <button id="join" disabled title="Tick two or more tracks of the same kind: PCM or ATRAC on a Hi-MD disc, or one recording mode (SP, LP2 or LP4) on a standard disc">Combine…</button>
             <button id="det" disabled title="Tick one or more tracks and set their artist and / or album in one go (a standard disc has only titles: the artist goes in front of them and the disc is named after the album)">Edit details…</button>
-            <button id="adj" disabled title="Tick one or more PCM or ATRAC tracks on a Hi-MD disc: add a fade in / out and / or even out their volume (new tracks are written)">Fade &amp; level…</button>
           </div>
           <label id="freshRow" class="tool-text" style="display:none;gap:7px;align-items:center;cursor:pointer" title="Standard discs: the app keeps a copy of each track it adds and normally uses it. Tick this to read the track from the disc instead (slower: about as long as it plays)."><input type="checkbox" id="freshRead"> Read from the disc, not the saved copy</label>
-          <div class="tool-text">Tick tracks first: Move and Split take one (Split can cut it at many points at once), Combine takes two or more, Edit details and Fade &amp; level take any number. You can also drag a track by its number to a new place; ticked tracks move together. <a href="#" class="help-link" data-help="arrange">ⓘ How it works…</a></div>
+          <div class="tool-text">Tick tracks first: Move and Split take one (Split can cut it at many points at once), Combine takes two or more, Edit details takes any number. You can also drag a track by its number to a new place; ticked tracks move together. <a href="#" class="help-link" data-help="arrange">ⓘ How it works…</a></div>
+        </div>
+<div class="tool-group g-fade">
+          <div class="eyebrow">Fade &amp; level</div>
+          <div class="tool-buttons">
+            <button id="adj" disabled title="Tick one or more tracks (PCM or ATRAC on a Hi-MD disc; SP / LP2 / LP4 on a standard disc, if the recorder can send them back): add a fade in / out and / or even out their volume (new tracks are written)">Fade &amp; level…</button>
+          </div>
+          <label id="freshRow2" class="tool-text" style="display:none;gap:7px;align-items:center;cursor:pointer" title="Standard discs: the app keeps a copy of each track it adds and normally uses it. Tick this to read the track from the disc instead (slower: about as long as it plays)."><input type="checkbox" id="freshRead2"> Read from the disc, not the saved copy</label>
+          <div class="tool-text">Tick one or more tracks, then press Fade &amp; level: add a fade in and / or out, make them louder or quieter by a set amount, or even out their volume. The changed tracks are written next to the originals; nothing is deleted until you choose. Hi-MD PCM / ATRAC, or SP / LP on a standard disc (if the recorder can send the tracks back). <a href="#" class="help-link" data-help="fade">ⓘ How it works…</a></div>
         </div>
 <div class="tool-pair">
 <div class="tool-group g-autosplit" id="autoSplitGroup">
@@ -634,6 +657,7 @@
   </div>
 </main>
 
+<div id="loadBox" role="status" aria-live="polite"><i></i><div><span id="loadMsg"></span><small>Nothing is wrong: the track is being read before the sound can start.</small></div></div>
 <div id="player" class="hidden">
   <button id="prevT" class="skip" title="Previous track (a track that has played for more than 3 seconds starts again first)">⏮</button>
   <button id="pp" class="pp on" title="Play / pause">▶</button>
@@ -874,7 +898,7 @@ async function load(noSync) {
     $('recCredit').textContent = i && i.photo ? i.credit || '' : '';
     $('recDetails').classList.toggle('hidden', !i);
     if (i) { $('recAtrac').textContent = i.atrac; const ul = $('recFeatures'); ul.textContent = '';
-      for (const f of i.features) ul.append(el('li', { textContent: f })); } }  $('undo').classList.toggle('hidden', netmd); $('undoTop').classList.toggle('hidden', netmd); $('freshRow').style.display = netmd ? 'flex' : 'none';
+      for (const f of i.features) ul.append(el('li', { textContent: f })); } }  $('undo').classList.toggle('hidden', netmd); $('undoTop').classList.toggle('hidden', netmd); $('freshRow').style.display = $('freshRow2').style.display = netmd ? 'flex' : 'none';
   $('vol').style.display = playingRemote ? 'none' : '';      // a remote-controlled recorder's volume is set on the recorder
   setClock(r.clock);
   fmtInfo = { netmd, canHimd: !!r.canHimd, tracks: r.disc ? r.disc.tracks.length : null, protected: !!(r.disc && r.disc.writeProtected) };
@@ -991,10 +1015,19 @@ function stopPlayer() {
   playToken++; broken = false; audio.pause(); audio.removeAttribute('src'); audio.load();
   if (playingRemote && nowNum) { remoteStopPolling(); remote.state = 'ready'; remoteRequest('stop', nowNum - 1, 0); }   // the recorder / speaker stops too
   playingRemote = false; $('vol').style.display = ''; $('vol').value = localVol;      // a remote-controlled track hides the slider; playing here needs it back
+  setStatus('');
   nowNum = 0; $('player').classList.add('hidden'); markNow();
 }
 function isPlayable(t) { return netmd || ['PCM', 'MP3', 'A3+', 'AT3'].includes(t.codec); }
-function setStatus(text) { $('npStatus').textContent = text || ''; }
+let statusTimer = 0;
+function setStatus(text, busy) {                                      // busy: a read is under way, so the note shows a spinner and the seconds so far
+  clearInterval(statusTimer); statusTimer = 0;
+  const box = $('npStatus'), big = $('loadBox'); $('player').classList.toggle('loading', !!(busy && text));
+  if (!(busy && text)) { box.textContent = text || ''; big.classList.remove('show'); return; }
+  big.classList.add('show');
+  const t0 = Date.now(), show = () => { const s = Math.floor((Date.now() - t0) / 1000), msg = text.replace(/…$/, '') + (s >= 1 ? ' … ' + s + ' s' : '…'); box.textContent = msg; $('loadMsg').textContent = msg; };
+  show(); statusTimer = setInterval(show, 500);
+}
 
 // ---- Remote control (standard discs) ---------------------------------------
 // A NetMD recorder can't send its audio to the PC, so the app tells the recorder to play and follows its position.
@@ -1065,7 +1098,7 @@ async function remotePlay(t) {
   $('npTitle').textContent = t.number + '. ' + (t.title === '(untitled)' ? 'Untitled' : t.title);
   $('seek').value = 0; $('tcur').textContent = '0:00'; $('ttot').textContent = len(t.seconds);
   const cold = netmd && !t.hasCopy && canExploitDev && !canFetchDev;          // read from the recorder first: a track that has not been read yet takes a while to start
-  setStatus(cold ? 'Reading this track from the recorder. It can take up to 15–20 seconds to start (tracks read ahead start at once)…' : 'Telling the recorder to play…');
+  setStatus(cold ? 'Reading this track from the recorder, it can take 15–20 seconds to start…' : 'Telling the recorder to play…', true);
   remote.state = 'ready'; remote.base = 0; remote.lastTrack = 0; markNow();
   await remoteCall('play', t.number - 1, 0);
   if (remote.state === 'playing') remoteStartPolling();
@@ -1088,7 +1121,7 @@ async function playTrack(t, auto) {                                  // auto: th
   nowNum = t.number; $('player').classList.remove('hidden');
   $('npTitle').textContent = t.number + '. ' + (t.title === '(untitled)' ? 'Untitled' : t.title) + (t.artist ? ' — ' + t.artist : '');
   $('seek').value = 0; $('tcur').textContent = '0:00'; $('ttot').textContent = len(t.seconds);
-  setStatus(t.hasCopy ? 'Opening the saved copy…' : netmd && !canFetchDev ? 'Reading from the recorder (it takes a few seconds to start)…' : netmd ? 'Copying from the recorder…' : 'Reading from the disc…'); markNow();
+  setStatus(t.hasCopy ? 'Opening the saved copy…' : netmd && !canFetchDev ? 'Reading the track from the recorder, sound starts in a few seconds…' : netmd ? 'Copying from the recorder, sound starts shortly…' : 'Reading from the disc…', true); markNow();
   if (netmd && !t.hasCopy) toast('Reading this track from the recorder. It will take a few seconds to start.', false, 7000);
   const r = await api().play_prepare(current, t.number);
   if (token !== playToken || r.superseded) return;
@@ -1107,12 +1140,30 @@ function dbg(text) { try { api().log(text); } catch (e) { /* page not ready */ }
   dbg('audio ' + ev + ' track=' + nowNum + ' broken=' + broken + ' paused=' + audio.paused + ' t=' + audio.currentTime.toFixed(1) +
       ' ready=' + audio.readyState + (e ? ' err=' + e.code + ' ' + (e.message || '') : ''));
 }));
+// ---- Whole-window size: Shift and + / - (Shift + 0 for normal), remembered ------------------------------------
+let uiZoom = 1;
+function applyZoom(z, remember) {
+  uiZoom = Math.max(0.5, Math.min(3, Math.round(z * 100) / 100));
+  if (remember) viewSet('mdm.zoom', String(uiZoom));
+  try { api().set_zoom(uiZoom).then(r => { if (r && r.error) dbg('zoom: ' + r.error); }); } catch (e) { /* not ready yet */ }
+}
+document.addEventListener('keydown', e => {
+  if (!e.shiftKey || e.ctrlKey || e.altKey || e.metaKey) return;
+  const t = e.target, tag = t && t.tagName;
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (t && t.isContentEditable)) return;
+  const up = e.key === '+' || e.key === '=' || e.code === 'NumpadAdd', down = e.key === '-' || e.key === '_' || e.code === 'NumpadSubtract';
+  if (up) { e.preventDefault(); applyZoom(uiZoom + 0.1, true); }
+  else if (down) { e.preventDefault(); applyZoom(uiZoom - 0.1, true); }
+  else if (e.code === 'Digit0' || e.code === 'Numpad0') { e.preventDefault(); applyZoom(1, true); }
+}, true);
+window.addEventListener('pywebviewready', () => { try { const z = Number(viewGet('mdm.zoom')); if (z && z !== 1) applyZoom(z, false); } catch (e) { /* not kept */ } });
 window.addEventListener('error', e => dbg('script error: ' + e.message + ' @' + e.lineno));
 window.addEventListener('unhandledrejection', e => dbg('promise rejected: ' + (e.reason && e.reason.message || e.reason)));
 window.onPlayInterrupted = msg => { dbg('INTERRUPTED by the app: ' + msg); broken = true; audio.pause(); setStatus(msg); markNow(); };
 audio.addEventListener('play', markNow); audio.addEventListener('pause', markNow);
-audio.addEventListener('playing', () => setStatus(''));
-audio.addEventListener('waiting', () => setStatus('Reading from the disc…'));
+let waitTimer = 0;
+audio.addEventListener('playing', () => { clearTimeout(waitTimer); setStatus(''); });
+audio.addEventListener('waiting', () => { clearTimeout(waitTimer); waitTimer = setTimeout(() => { if (nowNum && !audio.paused && audio.readyState < 3) setStatus('Waiting for more of the track to be read…', true); }, 1200); });       // only a wait of more than a moment is announced
 audio.addEventListener('error', () => { if (!audio.getAttribute('src')) return; dbg('audio ERROR code=' + (audio.error && audio.error.code)); broken = true; setStatus('Could not play this track. Press play to try again.'); markNow(); });
 audio.addEventListener('loadedmetadata', () => { $('ttot').textContent = clock(audio.duration); });
 audio.addEventListener('timeupdate', () => {
@@ -2090,16 +2141,6 @@ const helpText = () => ({
       '• “Reset columns”, or a double-click on a column edge, puts them back to automatic.',
       '• If the columns do not fit, the list scrolls sideways.',
     ]],
-    ['Fade & level', [
-      'Adds a fade in / out and / or evens out the volume of PCM or ATRAC tracks on a Hi-MD disc.',
-      '• Tick one or more tracks and press “Fade & level…”.',
-      '• Fade: choose a fade in and / or a fade out, up to 30 seconds each.',
-      '• Volume, “as loud as it can be without distorting”: puts each track’s loudest point just under the limit (−1 dB).',
-      '• Volume, “even out the ticked tracks”: brings all of them to the same average volume, handy when a disc holds tracks from different sources.',
-      'A track is never boosted past the point where it would distort.',
-      'Nothing on the disc is changed in place. Each ticked track is read, changed on this PC and written as a new track with the same name and details, placed after the last of them, then read back and checked byte for byte. The originals stay until you choose to delete them.',
-      'ATRAC tracks are decoded first, so their new tracks are lossless PCM and several times larger.',
-    ]],
     ['Disc catalogue (the button above the list)', [
       'Every disc this app loads, Hi-MD or standard (SP / LP), is remembered on this PC, with its tracks, titles and lengths (and artists and albums for Hi-MD discs). Blank discs are not kept.',
       '• Press “Disc catalogue…” above the list to search all your discs at once, by disc name, title, artist or album. The box beside the search can show only Hi-MD or only standard discs.',
@@ -2157,6 +2198,18 @@ const helpText = () => ({
       '• The sheet lists them in the order they will be joined, starting with their order on the disc. Use the ▲ ▼ buttons to change it, “Reverse” to flip it, or “Disc order” to put it back.',
       '• The new track is named after the first one in the list unless you type your own name.',
       'The Split and Combine windows (and the confirmation sheets that follow them) can be moved by dragging their title, and a click outside them no longer closes them.',
+    ]],
+  ]],
+  fade: ['Fade & level', [
+    ['Fade & level', [
+      'Adds a fade in / out, changes the volume, or evens it out. Works on PCM and ATRAC tracks of a Hi-MD disc, and on SP / LP2 / LP4 tracks of a standard disc when the recorder can send them back to the PC (an MZ-RH1, an MZ-NH700 one track at a time, or tracks the app has a saved copy of).',
+      '• Tick one or more tracks and press “Fade & level…”.',
+      '• Fade: choose a fade in and / or a fade out, up to 30 seconds each.',
+      '• Volume, “louder or quieter by a set amount”: enter dB (+ louder, − quieter; about 6 dB is twice or half the loudness). The boost is applied in full and then limited so the loudest peaks stay just under the maximum: a track that already peaks near full scale gets louder by lifting its quieter parts, and sounds more compressed the bigger the boost.',
+      '• Volume, “as loud as it can be without distorting”: puts each track’s loudest point just under the limit (−1 dB).',
+      '• Volume, “even out the ticked tracks”: brings all of them to the same average volume, handy when a disc holds tracks from different sources.',
+      'Nothing on the disc is changed in place. Each ticked track is read, changed on this PC and written as a new track with the same name and details, placed after the last of them, then read back and checked. You choose whether to delete the originals afterwards.',
+      'Hi-MD ATRAC tracks are decoded first, so their new tracks are lossless PCM and several times larger. On a standard disc the recorder encodes the changed sound again in the same mode, so there is one more generation of small quality loss.',
     ]],
   ]],
   autosplit: ['Auto split & name', [
@@ -2717,7 +2770,8 @@ function editKind(n) {
 // at a time), or from the copy this app saved when it added the track.
 const netmdReadable = n => { const t = trackMap.get(n); return !!t && (t.hasCopy || canFetchDev || canExploitDev); };
 const freshRead = () => !!(netmd && $('freshRead').checked);        // standard disc: read from the disc, ignoring the app's saved copy (not remembered between runs)
-$('freshRead').addEventListener('change', () => updateDel());
+$('freshRead').addEventListener('change', () => { $('freshRead2').checked = $('freshRead').checked; updateDel(); });
+$('freshRead2').addEventListener('change', () => { $('freshRead').checked = $('freshRead2').checked; updateDel(); });       // the same switch, repeated in the Fade & level tab
 const allowedPatch = () => { try { return localStorage.getItem('mdm.allowPatch') === '1'; } catch (e) { return false; } };
 async function askPatch() {                                     // the NH700's experimental download: ask once, then remember (the same choice as in the Identify sheet)
   if (!(netmd && canExploitDev && !canFetchDev) || allowedPatch()) return true;
@@ -2743,10 +2797,12 @@ function updateDel() {
   $('nm').disabled = selected.size < 1;                                                       // a standard disc gets titles only (the artist can go in front of them)
   $('pst').disabled = selected.size < 1;
   $('idf').disabled = !picked.length || (!netmd && !picked.every(n => editKind(n)));          // a standard disc: any track (the RH1 sends SP audio back)
-  $('adj').disabled = netmd || picked.length < 1 || !editKind(picked[0]) || !picked.every(n => editKind(n) === editKind(picked[0]));
+  $('adj').disabled = picked.length < 1 || !editKind(picked[0]) || !picked.every(n => editKind(n) === editKind(picked[0]))
+    || (netmd && (new Set(picked.map(n => trackMap.get(n).codec)).size !== 1       // standard disc: one recording mode, and the audio must be readable back (RH1; NH700 one track per run; or saved copies)
+      || !(canFetchDev || (canExploitDev && picked.length === 1) || (!freshRead() && picked.every(n => trackMap.get(n).hasCopy)))));
   $('del').disabled = selected.size === 0 || picked.some(n => !(trackMap.get(n) || {}).deletable);
   $('tidy').disabled = $('split').disabled;                                                    // split + trim + name in one go: any track Split can take (standard discs, and PCM / ATRAC on Hi-MD)
-  $('del').textContent = selected.size ? 'Delete ' + selected.size + '…' : 'Delete…';
+  $('del').textContent = selected.size ? 'Delete ' + selected.size + (selected.size === 1 ? ' track…' : ' tracks…') : 'Delete…';
 }
 // ---- Splitting and combining tracks (Hi-MD PCM) --------------------------------
 // A track can't be cut or joined on the disc itself, so the new tracks are recorded: the app reads the audio (lossless), cuts or
@@ -3098,8 +3154,8 @@ function openSplitEditor(num, prep, startAt, auto) {
   // The sheet opens wide; the handle in its bottom-right corner resizes it (it stays centred, so it grows both ways), and the size is remembered.
   const SIZE_KEY = 'mdm.splitSheet';
   const grip = el('div', { className: 'sheet-grip', title: 'Drag to resize' });
-  const savedSize = () => { try { return JSON.parse(localStorage.getItem(SIZE_KEY)) || null; } catch (e) { return null; } };
-  const saveSize = () => { try { localStorage.setItem(SIZE_KEY, JSON.stringify({ w: sheet.offsetWidth, h: sheet.style.height ? sheet.offsetHeight : 0 })); } catch (e) { /* not kept */ } };
+  const savedSize = () => { try { return JSON.parse(viewGet(SIZE_KEY)) || null; } catch (e) { return null; } };
+  const saveSize = () => { viewSet(SIZE_KEY, JSON.stringify({ w: sheet.offsetWidth, h: sheet.style.height ? sheet.offsetHeight : 0 })); };
   const sizeSheet = (w, h) => {
     sheet.style.width = Math.round(Math.min(innerWidth * 0.98, Math.max(560, w))) + 'px';
     sheet.style.height = h ? Math.round(Math.min(innerHeight * 0.96, Math.max(420, h))) + 'px' : '';
@@ -3261,7 +3317,7 @@ async function openEditPlan(op, nums, params) {
       ? el('div', { className: 'notice', textContent: 'Needs ' + fmtTime(r.needSeconds) + ' free on the disc in ' + r.codec + ' mode (it has ' + fmtTime(r.freeSeconds) + ') and about ' + fmtSize(r.tmpNeed) + ' on this PC for a while (it has ' + fmtSize(r.tmpFree) + ').' })
       : el('div', { className: 'notice', textContent: 'Needs ' + fmtSize(r.needBytes) + ' free on the disc (it has ' + fmtSize(r.freeBytes) + ') and about ' + fmtSize(r.tmpNeed) + ' on this PC for a while (it has ' + fmtSize(r.tmpFree) + ').' }),
     r.netmd
-      ? el('div', { className: 'notice', textContent: 'A standard disc cannot be cut or joined on the disc itself, so the app reads the audio from the recorder to this PC, ' + (op === 'split' ? 'cuts' : 'joins') + ' it, and writes the new track' + (r.outs.length > 1 ? 's' : '') + ' to the disc, then moves ' + (r.outs.length > 1 ? 'them' : 'it') + ' next to the original' + (nums.length > 1 ? 's' : '') + '. The recorder encodes the sound again as ' + r.codec + ', so there is one more generation of quality loss (small, but not zero). Writing takes about as long as the audio plays, and the disc’s track list is checked afterwards. ' + (delFirst ? '' : 'Your original track' + (nums.length > 1 ? 's are' : ' is') + ' not changed or deleted; afterwards you choose.') })
+      ? el('div', { className: 'notice', textContent: 'A standard disc cannot be cut or joined on the disc itself, so the app reads the audio from the recorder to this PC, ' + (op === 'split' ? 'cuts' : op === 'adjust' ? 'applies the fade and volume to' : 'joins') + ' it, and writes the new track' + (r.outs.length > 1 ? 's' : '') + ' to the disc, then moves ' + (r.outs.length > 1 ? 'them' : 'it') + ' next to the original' + (nums.length > 1 ? 's' : '') + '. The recorder encodes the sound again as ' + r.codec + ', so there is one more generation of quality loss (small, but not zero). Writing takes about as long as the audio plays, and the disc’s track list is checked afterwards. ' + (delFirst ? '' : 'Your original track' + (nums.length > 1 ? 's are' : ' is') + ' not changed or deleted; afterwards you choose.') })
       : el('div', { className: 'notice', textContent: 'The app reads the audio from the disc, writes the new track' + (r.outs.length > 1 ? 's' : '') + ', then reads ' + (r.outs.length > 1 ? 'them' : 'it') + ' back and compares every byte. For a long track that takes several minutes. Your original track' + (nums.length > 1 ? 's are' : ' is') + (r.fits ? ' not changed or deleted; afterwards you choose.' : ' not changed while the new tracks are being saved.') })];
   if (r.kind === 'atrac') parts.push(el('div', { className: 'notice', textContent: r.mode === 'lossless'
     ? 'Lossless: the ATRAC frames are copied exactly as they are on the disc, so there is no quality loss and no re-encoding. ' + (op === 'split' ? 'The very start of the second part (about 46 ms for ATRAC3+, 23 ms for ATRAC3) can sound distorted.' : 'The join falls on a frame boundary.')
@@ -4962,17 +5018,26 @@ $('grpDel').addEventListener('click', () => {                              // se
   $('del').click();
 });
 
+// ---- The view (card places and sizes, hidden and folded cards, open tabs, window scale, column widths, split-editor size) is NOT kept between runs: the app always starts in the stock layout. ----------
+// It is kept only for this run (sessionStorage, so a page reload inside the app does not lose it); anything an older version saved is removed.
+const viewGet = k => { try { return sessionStorage.getItem(k); } catch (e) { return null; } };
+const viewSet = (k, v) => { try { sessionStorage.setItem(k, v); } catch (e) { /* not kept */ } };
+try {
+  const old = []; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && (k === 'mdm.layout' || k === 'mdm.zoom' || k === 'mdm.trackCols' || k === 'mdm.splitSheet' || k.startsWith('mdm.tab.') || k.startsWith('mdm.collapsed.'))) old.push(k); }
+  old.forEach(k => localStorage.removeItem(k));
+} catch (e) { /* no storage */ }
+
 // ---- Tabs for the tool cards ---------------------------------------------------------
 // One section of each card is shown at a time. The sections stay in the page (only hidden), so every button and its enabled state keep working.
 function makeTabs(cardId, classes, remember, names) {                 // names: optional {class: tab text} for sections that have no heading of their own
   const card = $(cardId); if (!card) return;
   const groups = classes.map(c => card.querySelector('.tool-group.' + c)).filter(Boolean); if (groups.length < 2) return;
   const label = g => (names && names[classes[groups.indexOf(g)]]) || (g.querySelector('.eyebrow') || {}).textContent || '';
-  let active = 0; try { active = Math.max(0, groups.findIndex(g => g.classList.contains(localStorage.getItem(remember)))); } catch (e) { active = 0; }
+  let active = 0; try { active = Math.max(0, groups.findIndex(g => g.classList.contains(viewGet(remember)))); } catch (e) { active = 0; }
   const strip = el('div', { className: 'tab-strip', role: 'tablist' }), btns = [];
   const pick = i => {
     groups.forEach((g, k) => { g.classList.toggle('tab-on', k === i); btns[k].setAttribute('aria-selected', k === i ? 'true' : 'false'); btns[k].tabIndex = k === i ? 0 : -1; });
-    try { localStorage.setItem(remember, classes[i]); } catch (e) { /* not kept */ }
+    viewSet(remember, classes[i]);
   };
   groups.forEach((g, i) => {
     const b = el('button', { type: 'button', role: 'tab', textContent: label(g).replace(/&amp;/g, '&') });
@@ -4985,7 +5050,7 @@ function makeTabs(cardId, classes, remember, names) {                 // names: 
   pick(active);
 }
 makeTabs('recordCard', ['g-add', 'g-label'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc labelling' });
-makeTabs('mgmtCard', ['g-arrange', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove'], 'mdm.tab.mgmt');
+makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove'], 'mdm.tab.mgmt');
 makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-check', 'g-copyout'], 'mdm.tab.extras');
 
 // ---- Collapsible cards: click a card title to fold the card down to just its title (remembered per card) ------------------
@@ -4994,10 +5059,10 @@ document.querySelectorAll('section.card').forEach((card, i) => {
   const key = 'mdm.collapsed.' + (title.textContent.trim() || i);
   title.classList.add('fold-title'); title.setAttribute('role', 'button'); title.tabIndex = 0;
   const set = on => { card.classList.toggle('collapsed', on); title.setAttribute('aria-expanded', on ? 'false' : 'true'); title.title = on ? 'Click to expand' : 'Click to collapse'; };
-  const flip = () => { const on = !card.classList.contains('collapsed'); set(on); try { localStorage.setItem(key, on ? '1' : '0'); } catch (e) { /* not kept */ } };
+  const flip = () => { const on = !card.classList.contains('collapsed'); set(on); viewSet(key, on ? '1' : '0'); };
   title.addEventListener('click', flip);
   title.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
-  let was = false; try { was = localStorage.getItem(key) === '1'; } catch (e) { /* not kept */ }
+  const was = viewGet(key) === '1';
   set(was);
 });
 
@@ -5013,8 +5078,8 @@ const defaultLayout = () => ({ rows: [[['disc'], ['record', 'lyrics'], ['mgmt', 
 // A layout saved before the Lyrics card existed gets it added under Recording, everything else stays where it was.
 const withLyrics = l => { try { if (l && Array.isArray(l.rows) && !l.rows.flat(2).includes('lyrics')) { const cell = l.rows.flat().find(c => Array.isArray(c) && c.includes('record')); if (cell) cell.splice(cell.indexOf('record') + 1, 0, 'lyrics'); else if (l.rows[0]) l.rows[0].push(['lyrics']); } } catch (e) { /* not a layout */ } return l; };
 const layoutOk = l => { try { return l.rows.every(r => Array.isArray(r) && r.every(c => Array.isArray(c) && c.length)) && l.rows.flat(2).slice().sort().join() === Object.keys(CARD_NAMES).sort().join() && Array.isArray(l.hidden) && l.hidden.every(h => h in CARD_NAMES); } catch (e) { return false; } };
-let layout = (() => { try { const l = withLyrics(JSON.parse(localStorage.getItem(LAYOUT_KEY))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } return defaultLayout(); })();
-const saveLayout = () => { try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)); } catch (e) { /* not kept */ } };
+let layout = (() => { try { const l = withLyrics(JSON.parse(viewGet(LAYOUT_KEY))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } return defaultLayout(); })();
+const saveLayout = () => viewSet(LAYOUT_KEY, JSON.stringify(layout));
 const cardEl = id => document.querySelector('section.card[data-card="' + id + '"]');
 function renderBoard() {
   const board = $('board'), hold = $('cardHold'), GAP = 18;
@@ -5034,7 +5099,39 @@ function renderBoard() {
     board.append(r);
   });
   Object.keys(CARD_NAMES).forEach(id => { const h = layout.h && layout.h[id]; cardEl(id).style.minHeight = h ? h + 'px' : ''; });
-  applyBases(); syncCardsMenu(); requestAnimationFrame(fitTracks);
+  applyBases(); applyTopH(); syncCardsMenu(); requestAnimationFrame(fitTracks);
+}
+// ---- the splitter between the cards above and the Tracks card (standard layout: Tracks alone in the last row) ----------------------------------------
+// layout.topH is the height in px of the row just above the Tracks card; unset means automatic (as tall as its contents). The track list fills whatever
+// height the window has left (fitTracks), so dragging the splitter down gives the cards more room and the list less, and up the other way round.
+// Dragging down gives the cards above more height (they stretch to fill it) and the track list less; dragging back up stops where the cards' contents need
+// their own height, which is "automatic". The cards themselves are not scaled or scrolled.
+let topRow = null;
+function applyTopH() {
+  const board = $('board'); board.querySelectorAll('.vsplit').forEach(v => v.remove());
+  const rows = [...board.children].filter(r => r.classList.contains('brow')), ti = rows.findIndex(r => r.querySelector('[data-card="tracks"]'));
+  rows.forEach(r => { r.style.minHeight = ''; r.querySelectorAll('section.card').forEach(c => { c.style.zoom = ''; }); });
+  topRow = null;
+  if (ti < 1 || rows[ti].children.length !== 1 || rows[ti].querySelectorAll('section.card').length !== 1) return;     // only when Tracks has a row of its own, below the others
+  const above = rows[ti - 1], bar = el('div', { className: 'vsplit', title: 'Drag down to give the cards above more height, up to put it back · double-click for automatic' });
+  rows[ti].before(bar);
+  topRow = above;
+  if (layout.topH) above.style.minHeight = layout.topH + 'px';
+  bar.addEventListener('dblclick', () => { delete layout.topH; saveLayout(); applyTopH(); requestAnimationFrame(fitTracks); });
+  bar.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return; e.preventDefault();
+    const y0 = e.clientY, h0 = above.getBoundingClientRect().height;
+    above.style.minHeight = '0'; const nat = above.getBoundingClientRect().height; above.style.minHeight = layout.topH ? layout.topH + 'px' : '';     // the height the contents need
+    try { bar.setPointerCapture(e.pointerId); } catch (x) { /* the pointer is already gone */ }
+    bar.classList.add('on'); document.body.classList.add('card-resizing');
+    const move = ev => {
+      const h = Math.min(2400, Math.round(h0 + ev.clientY - y0));
+      if (h <= nat + 2) { delete layout.topH; above.style.minHeight = ''; } else { layout.topH = h; above.style.minHeight = h + 'px'; }
+      fitTracks();
+    };
+    const up = () => { bar.removeEventListener('pointermove', move); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up); bar.classList.remove('on'); document.body.classList.remove('card-resizing'); saveLayout(); fitTracks(); };
+    bar.addEventListener('pointermove', move); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+  });
 }
 const WT_SUM = 4.3;                                                          // the default weights of the four top cards added up
 const wOf = id => (layout.wt && layout.wt[id]) || CARD_W[id];                // a card's width weight: the one you dragged it to, else the default
@@ -5082,7 +5179,7 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') cardsMenu.cl
 // What a drop at (x, y) would do, or null: { kind: 'row', at } a new row at that place in layout.rows; { kind: 'cell', target, side } a new column left / right of the
 // cell of card `target`; { kind: 'stack', target, side } above / below card `target` in its cell. rect is where the page draws the guide line.
 function cardDrop(id, x, y) {
-  const board = $('board'), rows = [...board.children]; if (!rows.length) return null;
+  const board = $('board'), rows = [...board.children].filter(r => r.classList.contains('brow')); if (!rows.length) return null;       // not the splitter
   const rr = rows.map(r => r.getBoundingClientRect()), n = rows.length, bw = board.getBoundingClientRect(), at = i => +rows[i].dataset.row;
   if (y < rr[0].top + 10) return { kind: 'row', at: at(0), rect: { l: bw.left, t: rr[0].top - 9, w: bw.width, h: 4 } };
   if (y > rr[n - 1].bottom - 10) return { kind: 'row', at: at(n - 1) + 1, rect: { l: bw.left, t: rr[n - 1].bottom + 7, w: bw.width, h: 4 } };
@@ -5202,22 +5299,29 @@ function addGrips() {
 buildCardsMenu(); addGrips(); addSizers(); renderBoard();
 
 // ---- Fade & level: a fade in / out and / or an even volume, written as new tracks (the originals stay until you choose) ------------------
-$('adj').addEventListener('click', () => {
-  if (uploading || netmd || !selected.size) return;
+$('adj').addEventListener('click', async () => {
+  if (uploading || !selected.size) return;
+  if (netmd && !(await askPatch())) return;
   const nums = [...selected].sort((a, b) => a - b), kind = editKind(nums[0]);
   const num = (v, max) => el('input', { type: 'number', min: 0, max, step: 0.5, value: v, style: 'width:90px;padding:8px' });
   const fin = num(0, 30), fout = num(0, 30);
   const level = el('select', { style: 'padding:8px;width:100%' },
     el('option', { value: 'none', textContent: 'Leave the volume as it is' }),
+    el('option', { value: 'gain', textContent: 'Louder or quieter by a set amount (dB)…' }),
     el('option', { value: 'peak', textContent: 'Make each track as loud as it can be without distorting (peak at −1 dB)' }),
     ...(nums.length > 1 ? [el('option', { value: 'match', textContent: 'Even out the ticked tracks: bring them all to the same average volume' })] : []));
+  const gainIn = el('input', { type: 'number', min: -30, max: 30, step: 0.5, value: 3, style: 'width:90px;padding:8px' });
+  const gainRow = el('label', { style: 'display:none;gap:8px;align-items:center;margin-top:8px' }, el('span', { textContent: 'Change by' }), gainIn,
+    el('span', { textContent: 'dB   (+ louder, − quieter; about 6 dB is twice or half the loudness)' }));
+  level.onchange = () => { gainRow.style.display = level.value === 'gain' ? 'flex' : 'none'; };
   const list = el('div', { className: 'filelist' });
   nums.forEach(n => list.append(el('div', { className: 'file', style: 'grid-template-columns:auto 1fr auto' }, el('span', { className: 'chip', textContent: '#' + n }),
     el('span', { textContent: trackName(n) }), el('span', { className: 'meta', textContent: len(trackMap.get(n).seconds) }))));
   const go = el('button', { className: 'primary', textContent: 'Continue…' });
   go.onclick = () => {
-    const params = { fadeIn: Number(fin.value) || 0, fadeOut: Number(fout.value) || 0, level: level.value };
-    if (!params.fadeIn && !params.fadeOut && params.level === 'none') { toast('Choose a fade or a volume setting first.'); return; }
+    const params = { fadeIn: Number(fin.value) || 0, fadeOut: Number(fout.value) || 0, level: level.value, gainDb: Number(gainIn.value) || 0 };
+    if (!params.fadeIn && !params.fadeOut && (params.level === 'none' || (params.level === 'gain' && !params.gainDb))) { toast('Choose a fade or a volume setting first.'); return; }
+    if (netmd) { params.useExploit = allowedPatch(); params.fresh = freshRead(); }
     openEditPlan('adjust', nums, params);
   };
   openSheet(el('h2', { textContent: 'Fade & level ' + (nums.length === 1 ? 'one track' : nums.length + ' tracks') }),
@@ -5226,9 +5330,10 @@ $('adj').addEventListener('click', () => {
     el('div', { style: 'display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin:10px 0' },
       el('label', { style: 'display:flex;gap:8px;align-items:center' }, el('span', { textContent: 'Fade in over' }), fin, el('span', { textContent: 's' })),
       el('label', { style: 'display:flex;gap:8px;align-items:center' }, el('span', { textContent: 'Fade out over' }), fout, el('span', { textContent: 's' }))),
-    el('div', { className: 'eyebrow', textContent: 'Volume' }), level,
-    el('div', { className: 'notice', textContent: 'A louder setting never goes past the point where the sound would distort, so a track that is already loud is not boosted. ' +
-      (kind === 'atrac' ? 'ATRAC tracks are decoded and the new tracks are written as lossless PCM, which is several times larger (the next sheet shows how much room is needed).' : 'PCM tracks stay PCM, so there is no loss of quality beyond the change you asked for.') }),
+    el('div', { className: 'eyebrow', textContent: 'Volume' }), level, gainRow,
+    el('div', { className: 'notice', textContent: 'A set boost is applied in full, followed by a limiter that keeps the loudest peaks just under the maximum so nothing distorts. A track that already peaks near the maximum gets louder by lifting its quieter parts, which sounds more compressed the bigger the boost. ' +
+      (netmd ? 'On a standard disc the recorder encodes the changed sound again in the same mode (SP, LP2 or LP4), so there is one more generation of quality loss. ' : '') +
+      (netmd ? '' : kind === 'atrac' ? 'ATRAC tracks are decoded and the new tracks are written as lossless PCM, which is several times larger (the next sheet shows how much room is needed).' : 'PCM tracks stay PCM, so there is no loss of quality beyond the change you asked for.') }),
     el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   floatSheet(true);
 });
@@ -5327,7 +5432,7 @@ function openNaming(mode, autoStart) {                     // mode: album, paste
     el('span', { className: 'meta', innerHTML: 'Free: register this program at acoustid.org/new-application, then paste the “Application API key”.' }));
   const listenBtn = el('button', { textContent: 'Listen and identify' });
   const needPatch = netmd && canExploitDev && !canFetchDev;                    // an MZ-NH700 or similar: it can only send a standard disc's audio back with the opt-in download
-  const freshBox = el('input', { type: 'checkbox', checked: $('freshRead').checked, onchange: () => { $('freshRead').checked = freshBox.checked; updateDel(); } });      // ignore the app's saved copies and read the tracks from the disc again (the same switch as beside Split / Combine)
+  const freshBox = el('input', { type: 'checkbox', checked: $('freshRead').checked, onchange: () => { $('freshRead').checked = $('freshRead2').checked = freshBox.checked; updateDel(); } });      // ignore the app's saved copies and read the tracks from the disc again (the same switch as beside Split / Combine)
   const freshRow = netmd ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:flex-start;cursor:pointer' }, freshBox,
     el('span', {}, el('b', { textContent: 'Read from the disc again, even if the app has a saved copy.' }), el('br'),
       'A saved copy is matched by title and length, so a track that was changed but kept both could be listened to from its old copy. Tick this to listen to what is on the disc now. It takes as long as each track lasts.')) : '';
@@ -6373,8 +6478,8 @@ $('copiesBtn').addEventListener('click', async () => {
     tbl.classList.add('sized'); cols.forEach((c, i) => { c.style.width = widths[i] + 'px'; });
     tbl.style.width = widths.reduce((s, x) => s + x, 0) + 'px'; tbl.style.minWidth = '100%'; $('colReset').style.display = '';
   }
-  const save = () => { try { if (widths) localStorage.setItem(KEY, JSON.stringify(widths)); else localStorage.removeItem(KEY); } catch (e) { /* not kept */ } };
-  try { const w = JSON.parse(localStorage.getItem(KEY)); if (Array.isArray(w) && w.length === ths.length && w.every(x => x >= 30 && x < 3000)) widths = w; } catch (e) { /* none saved */ }
+  const save = () => { try { if (widths) viewSet(KEY, JSON.stringify(widths)); else sessionStorage.removeItem(KEY); } catch (e) { /* not kept */ } };
+  try { const w = JSON.parse(viewGet(KEY)); if (Array.isArray(w) && w.length === ths.length && w.every(x => x >= 30 && x < 3000)) widths = w; } catch (e) { /* none saved */ }
   ths.forEach((th, i) => {
     if (i < FIRST) return;
     const grip = document.createElement('div'); grip.className = 'col-grip'; grip.title = 'Drag to resize this column'; th.append(grip);

@@ -235,8 +235,13 @@ class PlayMixin:
             else:
                 self._drive_ok = None
             st['failed'] = True
+            err = str(res['error'])
+            if st.get('cmd') == 'fetch' and 'rejected' in err.lower():   # the recorder's own refusal to send this track back (a hex string)
+                err = ('This recorder won’t send this track back to the PC. Even the MZ-RH1 only does that for tracks it considers its own, '
+                       'not ones copied in from SonicStage or another deck. Try the disc in an MZ-NH700 (the app can read it there), '
+                       'or use the remote control to play it on the recorder. (Recorder reply: %s)' % err[:60])
             st['error'] = ('Playback stopped because the recorder was needed for something else. Press play to read it again.'
-                           if st['cancelled'] else res['error'])
+                           if st['cancelled'] else err)
             self.log('read of %s failed: %s (cancelled=%s, announced=%s, current=%s)' % (st['name'], str(res['error'])[:200], st['cancelled'], st['announced'], self._active is st))
         else:
             st['total'] = res['result']['bytes']

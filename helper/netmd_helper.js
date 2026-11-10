@@ -125,16 +125,38 @@ function convertToWav(file) {
 }
 
 // Returns what we know about a file without touching the recorder. Call release() when done with it.
-// Title / artist / album from the ID3 tag of an MP3 (empty strings for anything else, or if the tag is missing or unreadable).
-function readTags(file) {
+// Title / artist / album from the tags of any audio file ffmpeg can open (FLAC, M4A, OGG, Opus, WMA, WAV, AIFF...). Empty strings when there are none.
+function ffmpegTags(file) {
     const none = { title: '', artist: '', album: '' };
-    if (!/\.mp3$/i.test(file)) return none;
+    const run = extra => {                                         // the tags as ffmpeg's "ffmetadata" text, parsed into {lower-case name: value}
+        const out = require('child_process').execFileSync(path.join(RT, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
+            { encoding: 'utf8', timeout: 20000, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+        const tags = {};
+        for (const line of out.split(/\r?\n/)) {
+            if (/^[;#]/.test(line)) continue;
+            const m = /^([^=\s][^=]*)=(.*)$/.exec(line);
+            if (m) tags[m[1].trim().toLowerCase()] = m[2].replace(new RegExp(String.fromCharCode(92, 92) + '(.)', 'g'), '$1').trim();     // ffmetadata escapes = ; # and the backslash itself with a backslash
+        }
+        return tags;
+    };
     try {
-        const t = mod('node-id3').read(file) || {};
-        return { title: String(t.title || '').trim(), artist: String(t.artist || '').trim(), album: String(t.album || '').trim() };
+        let tags = run([]);                                        // FLAC, M4A, WAV, WMA...: file-level tags
+        if (!tags.title && !tags.artist && !tags.album) tags = run(['-map_metadata', '0:s:0']);      // OGG / Opus keep them on the audio stream
+        return { title: tags.title || '', artist: tags.artist || tags.album_artist || tags.albumartist || '', album: tags.album || '' };
     } catch (e) {
         return none;
     }
+}
+
+// Title / artist / album from the tags of the file: ID3 for an MP3, otherwise read through ffmpeg (empty strings if the tag is missing or unreadable).
+function readTags(file) {
+    if (/\.mp3$/i.test(file)) {
+        try {
+            const t = mod('node-id3').read(file) || {};
+            return { title: String(t.title || '').trim(), artist: String(t.artist || '').trim(), album: String(t.album || '').trim() };
+        } catch (e) { /* fall through to ffmpeg */ }
+    }
+    return ffmpegTags(file);
 }
 
 function inspect(f) {

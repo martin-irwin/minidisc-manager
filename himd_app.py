@@ -54,7 +54,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.25.4'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.26.0'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -423,6 +423,22 @@ class Api(backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin,
             return {'error': 'The helper stopped without a result. %s' % ' '.join(other[-3:])}
         return {'result': result}
 
+    def set_zoom(self, factor):
+        """Scales the whole window like a browser page (Shift and + / -). 1.0 is normal size."""
+        try:
+            factor = max(0.5, min(3.0, float(factor)))
+            wv = self._window.native.webview               # the WebView2 control; its zoom must be set on the window's own thread
+            from System import Func, Type
+            def apply():
+                wv.ZoomFactor = factor
+            if wv.InvokeRequired:
+                wv.Invoke(Func[Type](apply))
+            else:
+                apply()
+            return {'zoom': factor}
+        except Exception as exc:
+            return {'error': 'Could not change the size: %s' % exc}
+
     def log(self, text):
         """Page-side diagnostics (audio events, script errors) -> app.log (next to the app, or under AppData when installed)."""
         try:
@@ -576,7 +592,25 @@ class WindowMemory:
         self.maximized = False
         self._timer = None
         self._lock = threading.Lock()
-        self._load()
+        self._start_size()                                              # always opens at a size that shows the full width of the cards; last time's size is not used
+
+    def _start_size(self):
+        """The same start size every time: wide enough for the whole row of cards, tall enough to show most things, centred, not maximised."""
+        try:
+            sw, sh = webview.screens[0].width, webview.screens[0].height
+            try:
+                import ctypes
+                scale = max(1.0, ctypes.windll.user32.GetDpiForSystem() / 96.0)     # the screen is reported in real pixels, the window is sized in scaled (logical) units
+            except Exception:
+                scale = 1.0
+            sw, sh = int(sw / scale), int(sh / scale)
+        except Exception:
+            return                                                      # no screen information: the default size
+        w = min(sw - 40, min(2600, max(1400, int(sw * .8))))                # 80 % of the screen's width (1400 to 2600), so the whole row of cards shows
+        h = min(sh - 80, min(1500, max(820, int(sh * .88))))                # 88 % of its height: most of the page, but not full screen
+        self.width, self.height = max(WINDOW_MIN[0], w), max(WINDOW_MIN[1], h)
+        self.x, self.y = max(0, (sw - self.width) // 2), max(0, (sh - self.height) // 2 - 20)
+        self.maximized = False
 
     def _load(self):
         try:

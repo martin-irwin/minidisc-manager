@@ -63,9 +63,35 @@ class EditMixin:
         except (TypeError, ValueError):
             return None, None, None
         level = params.get('level') or 'none'
-        if not (0 <= fade_in <= 30 and 0 <= fade_out <= 30) or level not in ('none', 'peak', 'match'):
+        if not (0 <= fade_in <= 30 and 0 <= fade_out <= 30) or level not in ('none', 'peak', 'match', 'gain'):
             return None, None, None
+        if level == 'gain' and not EditMixin._adjust_gain(params):
+            level = 'none'                                                       # a change of 0 dB is no change
         return round(fade_in, 2), round(fade_out, 2), level
+
+    @staticmethod
+    def _adjust_suffix(params):
+        """The text added to a changed track's title, such as ' (+6 dB)', ' (fade)' or ' (+3 dB, fade)'."""
+        fade_in, fade_out, level = EditMixin._adjust_params(params)
+        parts = []
+        if level == 'gain':
+            parts.append('%+g dB' % EditMixin._adjust_gain(params))
+        elif level == 'peak':
+            parts.append('louder')
+        elif level == 'match':
+            parts.append('levelled')
+        if fade_in or fade_out:
+            parts.append('fade')
+        return ' (%s)' % ', '.join(parts) if parts else ''
+
+    @staticmethod
+    def _adjust_gain(params):
+        """The chosen volume change in dB for level 'gain' (-30 to +30), 0.0 when unusable."""
+        try:
+            g = float(params.get('gainDb') or 0)
+        except (TypeError, ValueError):
+            return 0.0
+        return round(max(-30.0, min(30.0, g)), 1)
 
     def _volume_stats(self, path):
         """(mean dB, peak dB) of a WAV file as ffmpeg's volumedetect reports them."""
@@ -83,7 +109,10 @@ class EditMixin:
         'match' brings every track to the average of the tracks' average volumes, but never past -1 dB peak (no clipping)."""
         fade_in, fade_out, level = self._adjust_params(params)
         gains = [0.0] * len(srcs)
-        if level != 'none':
+        manual = self._adjust_gain(params) if level == 'gain' else 0.0
+        if level == 'gain':
+            gains = [manual] * len(srcs)                                         # exactly the amount asked; a boost is followed by a limiter below, so loud tracks get louder too
+        elif level != 'none':
             stats = []
             for i, p in enumerate(srcs):
                 if self._edit_cancel:
@@ -105,6 +134,8 @@ class EditMixin:
             chain = []
             if abs(gains[i]) >= 0.05:
                 chain.append('volume=%.2fdB' % gains[i])
+                if gains[i] > 0 and level == 'gain':                           # a track already near full scale can not just be multiplied: the limiter keeps the peaks at -1 dB
+                    chain.append('alimiter=limit=0.89:attack=5:release=80:level=disabled')
             if fade_in:
                 chain.append('afade=t=in:st=0:d=%.2f' % fade_in)
             if fade_out:
@@ -179,7 +210,8 @@ class EditMixin:
             if any(t['seconds'] < fade_in + fade_out or t['seconds'] < self.EDIT_MIN_PART for t in tracks):
                 return {'error': 'A fade can not be longer than the track it is on.'}
             kept = list(range(len(tracks)))
-            outs = [{'title': name(t), 'seconds': t['seconds']} for t in tracks]                    # each track becomes one new track with the same details
+            suffix = self._adjust_suffix(params)
+            outs = [{'title': name(t) + suffix, 'seconds': t['seconds']} for t in tracks]           # each track becomes one new track with the same details, its title saying what was changed
         else:
             return {'error': 'Unknown edit.'}
         t0 = tracks[0]

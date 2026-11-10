@@ -84,6 +84,29 @@ function ffmpeg(args, what) {
 }
 
 // Length in seconds of any audio file, by decoding it (the last progress line ffmpeg prints is the true length).
+// Title / artist / album from the tags of any audio file ffmpeg can open (FLAC, M4A, OGG, Opus, WMA, WAV, AIFF...). Empty strings when there are none.
+function ffmpegTags(file) {
+    const none = { title: '', artist: '', album: '' };
+    const run = extra => {                                         // the tags as ffmpeg's "ffmetadata" text, parsed into {lower-case name: value}
+        const out = require('child_process').execFileSync(path.join(RT, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
+            { encoding: 'utf8', timeout: 20000, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
+        const tags = {};
+        for (const line of out.split(/\r?\n/)) {
+            if (/^[;#]/.test(line)) continue;
+            const m = /^([^=\s][^=]*)=(.*)$/.exec(line);
+            if (m) tags[m[1].trim().toLowerCase()] = m[2].replace(new RegExp(String.fromCharCode(92, 92) + '(.)', 'g'), '$1').trim();     // ffmetadata escapes = ; # and the backslash itself with a backslash
+        }
+        return tags;
+    };
+    try {
+        let tags = run([]);                                        // FLAC, M4A, WAV, WMA...: file-level tags
+        if (!tags.title && !tags.artist && !tags.album) tags = run(['-map_metadata', '0:s:0']);      // OGG / Opus keep them on the audio stream
+        return { title: tags.title || '', artist: tags.artist || tags.album_artist || tags.albumartist || '', album: tags.album || '' };
+    } catch (e) {
+        return none;
+    }
+}
+
 function probeSeconds(file) {
     const err = ffmpeg(['-i', file, '-vn', '-f', 'null', '-'], 'read ' + path.basename(file) + ' as audio');
     const m = [...err.matchAll(/time=(\d+):(\d\d):(\d\d(?:\.\d+)?)/g)].pop();
@@ -96,8 +119,8 @@ function inspectFile(file) {
     const ext = path.extname(file).toLowerCase();
     const base = path.basename(file, path.extname(file));
     const other = () => {                                          // anything else ffmpeg can decode (or a WAV that is not 16-bit 44.1 kHz stereo)
-        const secs = probeSeconds(file);
-        return { path: file, kind: 'audio', label: ext.slice(1) || 'audio', bytes: fs.statSync(file).size, seconds: Math.round(secs), exactSeconds: secs, title: base, artist: '', album: '' };
+        const secs = probeSeconds(file), tags = ffmpegTags(file);
+        return { path: file, kind: 'audio', label: ext.slice(1) || 'audio', bytes: fs.statSync(file).size, seconds: Math.round(secs), exactSeconds: secs, title: tags.title || base, artist: tags.artist, album: tags.album };
     };
     if (ext === '.mp3') {
         const buf = fs.readFileSync(file);
@@ -108,7 +131,8 @@ function inspectFile(file) {
     if (ext === '.wav') {
         let data;
         try { data = parseWav(fs.readFileSync(file)); } catch (e) { return other(); }
-        return { path: file, kind: 'wav', bytes: data.length, seconds: Math.round(data.length / 176400), exactSeconds: data.length / 176400, title: base, artist: '', album: '' };
+        const tags = ffmpegTags(file);
+        return { path: file, kind: 'wav', bytes: data.length, seconds: Math.round(data.length / 176400), exactSeconds: data.length / 176400, title: tags.title || base, artist: tags.artist, album: tags.album };
     }
     if (OTHER_AUDIO.includes(ext)) return other();
     throw new Error('Unsupported file type ' + (ext || '(none)') + '. Add MP3, WAV, FLAC, M4A, OGG or similar audio files.');

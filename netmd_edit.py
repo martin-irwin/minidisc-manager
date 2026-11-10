@@ -134,7 +134,8 @@ class NetMdEditMixin:
         if not all(self._netmd_edit_ok(t) for t in tracks):
             return {'error': 'Only stereo SP, LP2 or LP4 tracks can be split or combined.'}
         if len({t['codec'] for t in tracks}) != 1:
-            return {'error': 'These tracks are in different recording modes (SP, LP2, LP4), so they cannot be joined. Combine tracks of one mode.'}
+            return {'error': 'These tracks are in different recording modes (SP, LP2, LP4), so they cannot be %s. %s tracks of one mode.' % (
+                'changed together' if op == 'adjust' else 'joined', 'Choose' if op == 'adjust' else 'Combine')}
         codec = tracks[0]['codec']
         name = lambda t: t['title'] if t['title'] != '(untitled)' else 'Track %d' % t['number']
         prep = self._edit_prep if (op == 'split' and self._edit_prep and params.get('prepared') == self._edit_prep.get('name')) else None
@@ -175,6 +176,17 @@ class NetMdEditMixin:
                 return {'error': 'Choose at least two tracks to combine.'}
             kept = [0]
             outs = [{'title': str(params.get('title') or '').strip() or name(tracks[0]), 'seconds': float(sum(t['seconds'] for t in tracks))}]
+        elif op == 'adjust':                                                 # Fade & level: each track comes back as one new track of the same mode, same title
+            fade_in, fade_out, level = self._adjust_params(params)
+            if fade_in is None:
+                return {'error': 'Choose a fade between 0 and 30 seconds, and one of the volume options.'}
+            if not fade_in and not fade_out and level == 'none':
+                return {'error': 'Choose a fade or a volume setting first.'}
+            if any(t['seconds'] < fade_in + fade_out or t['seconds'] < self.EDIT_MIN_PART for t in tracks):
+                return {'error': 'A fade can not be longer than the track it is on.'}
+            kept = list(range(len(tracks)))
+            suffix = self._adjust_suffix(params)             # a different title: the app finds its saved copies by title and length, so the changed track must not be mistaken for the original
+            outs = [{'title': name(t) + suffix, 'seconds': float(t['seconds'])} for t in tracks]
         else:
             return {'error': 'Unknown edit.'}
         if any(o['seconds'] > 80 * 60 * (1 if codec == 'SP' else 2 if codec == 'LP2' else 4) for o in outs):
@@ -282,6 +294,12 @@ class NetMdEditMixin:
                 if any(spans[k][1] - spans[k][0] < self.EDIT_MIN_PART * 176400 for k in kept):
                     return {'error': 'A split position is too close to another one, or to the start or end of the track. Nothing was written.'}
                 plan = [[(srcs[0], 44 + a, b - a)] for k, (a, b) in enumerate(spans) if k in kept]
+            elif op == 'adjust':
+                srcs = self._edit_adjust(srcs, params, tmp, tell)             # fade / volume applied to each WAV on this PC
+                if srcs is None or self._edit_cancel:
+                    return {'cancelled': True}
+                sizes = [wav_data_bytes(p) for p in srcs]
+                plan = [[(p, 44, n)] for p, n in zip(srcs, sizes)]
             else:
                 plan = [[(p, 44, n) for p, n in zip(srcs, sizes)]]
             files = []
