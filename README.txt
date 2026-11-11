@@ -8,7 +8,7 @@ Nothing else needs installing: Node, ffmpeg and the MiniDisc libraries are bundl
 The window
 - The top row has four panels, each with a heading (on a narrower window they wrap into two rows). Recording and the tool panels
   show one section at a time: click a tab to change section. The last tab you used is remembered.
-  * Disc Information: the disc picture (one arc per track), the disc name, track count, used / free space, and the disc image. While a track plays on this PC a live display of the music appears at the top of this panel (see Visualizer).
+  * Disc capacity (this card was called Disc Information; it is now three cards without headings: Visualiser, Track time and Disc capacity, stacked in one column by default, each ticked on or off in the Cards menu, and moved by the ⠿ grip that appears in a card's top right corner when the pointer is over it. Visualiser and Track time show only while a track plays): the disc picture (one arc per track), the disc name, track count, used / free space, and the disc image. While a track plays on this PC a live display of the music appears at the top of this panel (see Visualizer).
   * Recording: tabs "Add tracks" and "Disc labelling". Add tracks: Add tracks from PC..., Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
     Add tracks from Bandcamp..., Add tracks from SoundCloud..., Add tracks from Internet Radio... and a tick box "Put each batch of added
     tracks in a new group" (see Groups). Disc labelling: Make disc label....
@@ -31,7 +31,7 @@ The window
     track by its number to a new place (ticked tracks move together).
   * Lyrics (its own card, by default under Recording): the lyrics of the track that is playing, the current line lit in time with the music. It opens short (just a note) and grows while lyrics show.
   * Card sizes: drag a card's right edge to change its width (the other cards in its row give up or take the space), its bottom edge for its height (a minimum: a card never gets smaller than its contents) or its corner for both; double-click an edge to go back to automatic. In the default layout the bottoms of the columns line up. "Reset layout" restores everything to stock: places, sizes, hidden and folded cards and the first tab of each tabbed card.
-  * Card layout (header, between Theme and the recorder name): the Cards menu ticks the eight main cards (Disc Information, Recording, Lyrics, Disc
+  * Card layout (header, between Theme and the recorder name): the Cards menu ticks the ten main cards (Visualiser, Track time, Disc capacity, Recording, Lyrics, Disc
     Management, Disc Conversion, Disc Extras, Recorder, Tracks) on or off; Show all and Reset layout are in it too. Each card can be dragged by the dotted
     handle at the end of its title (the title itself still folds the card): drop on the left or right edge of another card for a new column
     beside it, on its top or bottom half to stack it above or below, or on the line between two rows (or above / below all of them) for a row
