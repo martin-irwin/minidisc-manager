@@ -13,7 +13,7 @@ import shutil
 
 from mdm_paths import CONVERT_DIR, NETMD_HELPER
 
-CODECS = {'hisp': 32000, 'hilp': 8000, 'pcm': 176400}           # bytes of disc space per second of audio
+CODECS = {'hisp': 32000, 'hilp': 8000, 'at3p': 44000, 'pcm': 176400}           # bytes of disc space per second of audio
 CAP_80_MIN = 305 * 1000 * 1000                                   # an 80-minute disc used as a Hi-MD disc holds about this much
 
 
@@ -220,4 +220,8 @@ class ConvertMixin:
             shutil.rmtree(CONVERT_DIR, ignore_errors=True)
         else:
             notes.append('The saved tracks are still on this PC until you discard them.')
+        try:
+            self.log('convert: wrote %d tracks as %s; notes: %s; PC copy %s' % (len(items), codec, notes or 'none', 'kept' if notes else 'deleted'))
+        except Exception:
+            pass
         return {'ok': True, 'tracks': len(items), 'codec': codec, 'notes': notes, 'kept': bool(notes)}

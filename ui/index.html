@@ -126,6 +126,14 @@
   .card.drag-src { opacity: .4; }
   .card-ghost { position: fixed; z-index: 60; pointer-events: none; padding: 6px 14px; border-radius: 10px; background: var(--panel); border: 1px solid var(--accent); box-shadow: var(--shadow); font-weight: 650; }
   .drop-ind { position: fixed; z-index: 59; pointer-events: none; border-radius: 3px; background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+  .sugg-flag { flex: none; padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; line-height: 1.3; color: #fff; -webkit-text-fill-color: #fff;
+               background: linear-gradient(135deg, #ff8a1f, #ff3d6e); box-shadow: 0 0 0 0 rgba(255, 90, 90, .55); animation: suggPulse 2s ease-out infinite; }
+  .sugg-flag.hidden { display: none; }
+  @keyframes suggPulse { 0% { box-shadow: 0 0 0 0 rgba(255, 90, 90, .55); } 70% { box-shadow: 0 0 0 9px rgba(255, 90, 90, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 90, 90, 0); } }
+  @media (prefers-reduced-motion: reduce) { .sugg-flag { animation: none; } }
+  .tool-group.suggested { outline: 2px solid #ff7a3d; outline-offset: 6px; border-radius: 10px; }
+  #playMode.mode-on { background: var(--accent); color: #fff; font-weight: 700; border-color: var(--accent); box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 40%, transparent); }
+  #playMode.mode-on option { color: var(--text); background: var(--panel, #222); font-weight: 400; }
   .grid > .disc-card { grid-area: disc; } .grid > .record-card { grid-area: record; } .grid > .tools-stack { grid-area: tools; display: flex; flex-direction: column; gap: 18px; min-width: 0; } /* Disc Management with Disc Extras below it */ .grid > .rec-card { grid-area: rec; }
   .record-card { align-content: start; display: flex; flex-direction: column; }            /* a column, so the lyrics box can take all the room left below the buttons */
   .record-card > .card-title { flex: 0 0 auto; }
@@ -155,7 +163,7 @@
   /* Disc Management reads in rows of two: Arrange | Remove, Auto split & name | Identify, Clone | Copy out (one column when the card is narrow).
      The wrappers dissolve so the six groups sit straight in the grid, placed by the order below. */
   .tool-pair { display: contents; }
-  .g-add { order: 1; } .g-label { order: 2; } .g-arrange { order: 2; } .g-fade { order: 2; } .g-remove { order: 3; } .g-autosplit { order: 4; } .g-groups { order: 5; } .g-identify { order: 5; } .g-lyrics { order: 6; } .g-clone { order: 7; } .g-copyout { order: 8; } .g-check { order: 7; }
+  .g-add { order: 1; } .g-label { order: 2; } .g-arrange { order: 2; } .g-fade { order: 2; } .g-remove { order: 3; } .g-format { order: 3; } .g-autosplit { order: 4; } .g-groups { order: 5; } .g-identify { order: 5; } .g-lyrics { order: 6; } .g-clone { order: 7; } .g-copyout { order: 8; } .g-check { order: 7; }
   @container (min-width: 440px) {
     .tool-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   }
@@ -454,6 +462,7 @@
   </svg></i> MiniDisc Manager <span id="appVersion" class="ver"></span> <button id="licBtn" class="ver" style="display:none;cursor:pointer;border:1px solid var(--line)" title="License"></button></div>
   <div class="spacer"></div>
   <button id="undoTop" class="hidden" title="Undo last change: restore the disc's track index as it was before the last rename, move, group or similar change (not available after a delete)">↶ Undo last change</button>
+  <button id="settingsBtn" title="Settings: switch the automatic disc lookup and the missing-details prompt on or off">⚙ Settings</button>
   <button id="dataBtn" title="Back up or restore this app's data (lyrics, catalogue, settings)">Backup…</button>
   <button id="castBtnTop"title="Choose where to play before you press play: this PC, a Sonos room or a Google TV">🔊 This PC</button>
   <div class="pill" title="Change the look of the app"><label for="themeSel" style="color:var(--muted)">Theme</label>
@@ -575,11 +584,6 @@
           <div class="tool-buttons"><button id="clone" title="Copy this whole disc to another disc of the same kind, through this PC">Clone disc…</button></div>
           <div class="tool-text">Copy a whole disc onto another disc of the same kind. <a href="#" class="help-link" data-help="clone">ⓘ How it works…</a></div>
         </div>
-<div class="tool-group g-convert hidden" id="convertGroup">
-          <div class="eyebrow">Convert</div>
-          <div class="tool-buttons"><button id="convert" title="Save this standard disc to the PC, set the disc up as Hi-MD and write the tracks back as Hi-SP (or Hi-LP / PCM)">Convert to Hi-MD…</button></div>
-          <div class="tool-text">Turn a standard (SP / LP) disc into a Hi-MD disc: the tracks are saved on the PC first and written back in the format you choose.</div>
-        </div>
           </div>
           <div class="tool-col">
 <div class="tool-group g-remove">
@@ -587,10 +591,34 @@
           <div class="tool-buttons">
             <button id="del" class="danger" disabled>Delete…</button>
             <button id="undo" title="Restore the track index as it was before the last change">Undo last change</button>
+          </div>
+          <div class="tool-text">Delete ticked tracks, or undo a rename or move. <a href="#" class="help-link" data-help="remove">ⓘ How it works…</a></div>
+        </div>
+<div class="tool-group g-format">
+          <div class="eyebrow">Format</div>
+          <div class="tool-buttons">
             <button id="fmt" class="danger" title="Erase everything on the disc">Format disc…</button>
           </div>
-          <div class="tool-text">Delete ticked tracks, undo a rename or move, or format the disc. <a href="#" class="help-link" data-help="remove">ⓘ How it works…</a></div>
+          <div class="tool-text">Erase the whole disc and set it up empty again, as a standard disc or (on a Hi-MD recorder) as a Hi-MD disc. You type FORMAT to confirm. <a href="#" class="help-link" data-help="format">ⓘ How it works…</a></div>
         </div>
+          </div>
+        </div>
+      </section>
+      <section class="card tools-card convert-card" id="convertCard" data-card="convert">
+        <h2 class="card-title">Disc Conversion</h2>
+        <div class="tool-cols">
+          <div class="tool-col">
+<div class="tool-group g-convert hidden" id="convertGroup">
+          <div class="eyebrow">Convert SP Disc to Hi-MD</div>
+          <div class="tool-buttons"><button id="convert" title="Save this standard disc to the PC, set the disc up as Hi-MD and write the tracks back as Hi-SP (or Hi-LP / 352 kbps / PCM)">Convert to Hi-MD…</button></div>
+          <div class="tool-text">Turn a standard (SP / LP) disc into a Hi-MD disc: the tracks are saved on the PC first and written back in the format you choose. <a href="#" class="help-link" data-help="convhimd">ⓘ How it works…</a></div>
+        </div>
+<div class="tool-group g-convert hidden" id="lpSpGroup">
+          <div class="eyebrow">Convert LP2/4 Disc to SP</div>
+          <div class="tool-buttons"><button id="lpSp" title="Rewrite LP2 / LP4 tracks as SP so that players without LP support can play them">Convert LP to SP…</button></div>
+          <div class="tool-text">Players without LP support play LP2 / LP4 tracks as silence. Choose the tracks to rewrite as SP, in the same places on the disc. <a href="#" class="help-link" data-help="convlpsp">ⓘ How it works…</a></div>
+        </div>
+<div class="tool-text" id="convertNone">Nothing to convert on this disc. This card offers “Convert SP Disc to Hi-MD” for a standard disc in a Hi-MD recorder, and “Convert LP2/4 Disc to SP” when a standard disc has LP2 or LP4 tracks.</div>
           </div>
         </div>
       </section>
@@ -643,13 +671,28 @@
           <div><div class="eyebrow">Clock</div><div id="clockText" style="font-weight:600">-</div></div>
           <button class="primary" id="setClock">Set to PC time</button>
         </div>
+        <div id="lpSpSpill" class="notice hidden" style="margin-top:12px">
+          <b>Converted tracks are waiting for a second disc.</b>
+          <div class="meta" style="white-space:normal;margin:4px 0 8px" id="lpSpSpillText"></div>
+          <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
+            <button class="primary" id="lpSpSpillGo">Write to this disc</button>
+            <button id="lpSpSpillDrop" title="Delete the saved tracks from this PC">Discard…</button>
+          </div>
+        </div>
+        <div id="lpSpHint" class="notice hidden" style="margin-top:12px">
+          <b>This disc has LP tracks.</b>
+          <div class="meta" style="white-space:normal;margin:4px 0 8px" id="lpSpHintText"></div>
+          <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
+            <button class="primary" id="lpSpHintGo">Convert LP to SP…</button>
+            <button id="lpSpHintHide" title="Hide this note for this disc">Hide for this disc</button>
+          </div>
+        </div>
         <div id="convertHint" class="notice hidden" style="margin-top:12px">
           <b>This disc can also be used as Hi-MD.</b>
           <div class="meta" style="white-space:normal;margin:4px 0 8px" id="convertHintText"></div>
           <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
             <button class="primary" id="convertHintGo">Convert to Hi-MD…</button>
             <button id="convertHintHide" title="Hide this note for this disc">Hide for this disc</button>
-            <button id="convertHintNever" title="Never show this note (the Convert button in Disc Management stays)">Never show</button>
           </div>
         </div>
       </section>
@@ -743,7 +786,23 @@ function toast(msg, isError, ms) {
 }
 const mb = n => n < 1e9 ? Math.round(n / 1e6) + ' MB' : (n / 1e9).toFixed(2) + ' GB';
 const len = s => Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+// The Disc Conversion card's "Suggestion" flag: lit when a conversion is possible for the loaded disc AND its Settings switch is on AND the note for it
+// has not been hidden for this disc (the same test as the notes under the Recorder card).
+var convSuggest = { himd: false, lpsp: false };
+function convBadgeSync() {
+  const card = document.getElementById('convertCard'), title = card && card.querySelector('.card-title'); if (!title) return;
+  let b = title.querySelector('.sugg-flag');
+  if (!b) { b = document.createElement('span'); b.className = 'sugg-flag hidden'; b.textContent = 'Suggestion'; title.insertBefore(b, title.querySelector('.card-grip')); }
+  const on = convSuggest.himd || convSuggest.lpsp;
+  b.classList.toggle('hidden', !on);
+  b.title = [convSuggest.himd ? 'Convert SP Disc to Hi-MD is possible for this disc' : '', convSuggest.lpsp ? 'Convert LP2/4 Disc to SP is possible for this disc' : ''].filter(Boolean).join('\n') +
+    '\n(Switch these suggestions off in Settings.)';
+  const g1 = document.getElementById('convertGroup'), g2 = document.getElementById('lpSpGroup');
+  if (g1) g1.classList.toggle('suggested', convSuggest.himd);
+  if (g2) g2.classList.toggle('suggested', convSuggest.lpsp);
+}
 function show(which) {
+  if (which !== 'content') { convSuggest.himd = convSuggest.lpsp = false; convBadgeSync(); }
   $('empty').classList.toggle('hidden', which !== 'empty');
   $('content').classList.toggle('hidden', which !== 'content');
 }
@@ -996,7 +1055,7 @@ async function load(noSync) {
   $('noTracks').classList.toggle('hidden', d.tracks.length > 0);
   show('content'); fitTracks();
   setTimeout(() => maybeAskMissing(d), 700);                                               // a disc with no artists / albums, picture or lyrics: offer to look them up
-  convertHintRefresh(d);                                                                   // a standard disc with audio on a Hi-MD recorder: a note under the Recorder card says it can be converted
+  lpSpHintRefresh(d); convertHintRefresh(d);                                                                   // a standard disc with audio on a Hi-MD recorder: a note under the Recorder card says it can be converted
   convertGroupRefresh(r.canHimd);
   if (!netmd && !uploading && !convertRunning && !d.tracks.length && !convertResumeShown) {     // an empty Hi-MD disc while converted tracks wait on this PC: offer to write them
     api().convert_status().then(s => { if (s && s.pending && !uploading && !convertRunning && !convertResumeShown) { convertResumeShown = true; openConvertResume(s.pending); } });
@@ -1013,6 +1072,38 @@ async function load(noSync) {
 // "Never ask" are kept on this PC. A pre-recorded commercial standard disc is looked up by the program on its own and is not asked about.
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
+// App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
+let appSettings = { autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true };
+async function appSettingsLoad() {
+  try {
+    let s = await api().get_app_settings();
+    if (s && s.askMissing && lsRead(ASK_OFF_KEY, '0') === '1') s = await api().set_app_setting('askMissing', false);        // "Never ask" chosen before the Settings button existed
+    if (s && s.askConvert && lsRead('mdm.askConvertOff', '0') === '1') s = await api().set_app_setting('askConvert', false);      // "Never show" chosen before the Settings button had it
+    if (s && !s.error) appSettings = Object.assign(appSettings, s);
+  } catch (e) { /* defaults stay */ }
+}
+async function appSettingSet(key, value) {
+  const r = await api().set_app_setting(key, value);
+  if (r && !r.error) { appSettings = Object.assign(appSettings, r); if (key === 'askMissing' && value) lsWrite(ASK_OFF_KEY, '0'); if (key === 'askConvert') { lsWrite('mdm.askConvertOff', value ? '0' : '1'); convertHintRefresh(curDisc); } if (key === 'askLpToSp') lpSpHintRefresh(curDisc); return true; }
+  toast((r && r.error) || 'The setting could not be saved'); return false;
+}
+function openSettings() {
+  const rows = [
+    ['autoLookupCommercial', 'Look up pre-recorded discs automatically', 'When a pre-recorded (commercial) standard disc is inserted, the program searches online (MusicBrainz, Discogs) for the artist, album and album art, then looks for lyrics. Only track names and lengths are sent. Switched off: use "Look up online" or "Search by hand" on the disc yourself.'],
+    ['askLpToSp', 'Suggest converting LP tracks to SP', 'When a standard disc with LP2 / LP4 tracks is inserted, a note under the Recorder card says that players without LP support play them as silence and offers to rewrite them as SP. Switched off: no note; Convert LP2/4 Disc to SP stays in the Disc Conversion card.'],
+    ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
+    ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
+  ].map(([key, title, text]) => {
+    const cb = el('input', { type: 'checkbox', checked: appSettings[key] !== false, onchange: async () => { const want = cb.checked; if (!(await appSettingSet(key, want))) cb.checked = !want; } });
+    return el('label', { className: 'file', style: 'grid-template-columns:auto 1fr;gap:10px;align-items:start;cursor:pointer' }, cb,
+      el('span', {}, el('b', { textContent: title }), el('div', { className: 'meta', style: 'white-space:normal', textContent: text })));
+  });
+  openFloat(el('h2', { textContent: 'Settings' }),
+    el('div', { className: 'sub', textContent: 'Changes apply straight away and are kept on this PC (and in a backup).' }),
+    el('div', { className: 'filelist' }, ...rows),
+    el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
+}
+$('settingsBtn').addEventListener('click', openSettings);
 let idQueue = [];
 let afterSheetClose = null;                                      // the steps carry on from here when a window is closed (see closeSheet)
 const lsRead = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } };
@@ -1041,7 +1132,7 @@ function nextIdStep() {
 afterSheetClose = () => { if (idQueue.length) setTimeout(nextIdStep, 200); };
 function maybeAskMissing(d) {
   if (!d || !d.tracks || !d.tracks.length || uploading || askedThisRun.has(d.key)) return;
-  if (lsRead(ASK_OFF_KEY, '0') === '1' || discsIgnored().includes(d.key)) return;
+  if (!appSettings.askMissing || lsRead(ASK_OFF_KEY, '0') === '1' || discsIgnored().includes(d.key)) return;
   if (d.commercial || $('modal').classList.contains('show') || (discPopup && discPopup.isConnected)) return;
   const m = missingOf(d);
   if (!m.names.length && !m.cover && !m.lyrics.length) return;
@@ -1065,7 +1156,7 @@ function maybeAskMissing(d) {
   const never = el('input', { type: 'checkbox' }), thisDisc = el('input', { type: 'checkbox' });
   const opt = (cb, text) => el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px;color:var(--muted)' }, cb, el('span', { textContent: text }));
   const remember = () => {
-    if (never.checked) lsWrite(ASK_OFF_KEY, '1');
+    if (never.checked) { lsWrite(ASK_OFF_KEY, '1'); appSettingSet('askMissing', false); lsWrite(ASK_OFF_KEY, '1'); }
     else if (thisDisc.checked) { const a = discsIgnored().filter(k => k !== d.key); a.push(d.key); lsWrite(ASK_DISCS_KEY, JSON.stringify(a.slice(-300))); }
   };
   const run = auto => {
@@ -1087,7 +1178,7 @@ function maybeAskMissing(d) {
   const goStep = el('button', { textContent: 'Let me choose each result', title: 'Opens the usual search windows one after another so you pick the album, the picture and the lyrics yourself', onclick: () => run(false) });
   openSheet(el('h2', { textContent: 'This disc is missing some details' }),
     el('div', { className: 'sub', textContent: 'Would you like the program to look them up online? Untick anything you do not want. Only the track names, lengths and album text are sent to the lookup services.' }),
-    list, opt(thisDisc, 'Don\u2019t ask again for this disc'), opt(never, 'Never ask me about missing details (turn this off)'),
+    list, opt(thisDisc, 'Don\u2019t ask again for this disc'), opt(never, 'Never ask me about missing details (turn this off; it can be switched back on in Settings)'),
     el('div', { className: 'row' }, el('button', { textContent: 'Ignore all', onclick: () => { remember(); idQueue = []; closeSheet(); } }), goStep, goAuto));
   floatSheet(true);                                              // movable by its title, and a stray click outside does not close it (only the buttons and the cross do)
 }
@@ -1449,10 +1540,17 @@ audio.addEventListener('timeupdate', () => {
 // The "group" of a track is its own group; tracks in no group count as one group per run (the "No group" header). The recorder plays by its
 // own rules when it is the one playing (a standard disc's remote control), so the mode is switched off then.
 let playMode = 'disc';
-try { const m = localStorage.getItem('mdm.playMode'); if (['disc', 'group', 'shuffle'].includes(m)) playMode = m; } catch (e) { /* not kept */ }
+// The mode is deliberately NOT remembered: every start is "Play on", so a shuffle chosen (or knocked on by a keypress) once never surprises a later run.
+try { localStorage.removeItem('mdm.playMode'); } catch (e) { /* nothing was kept */ }
 $('playMode').value = playMode;
 let shuffleDone = new Set(), playHist = [];                      // shuffle: tracks already played this round; the way back for the previous button
-function setPlayMode(m) { playMode = m; $('playMode').value = m; shuffleDone = new Set(); playHist = []; try { localStorage.setItem('mdm.playMode', m); } catch (e) { /* not kept */ } }
+// A mode other than Play on is lit up (colour, a ⇄ / ⟲ sign in the list) so it can not be on without being noticed; the tooltip says how to switch it off.
+function showPlayMode() {
+  const sel = $('playMode'); sel.classList.toggle('mode-on', playMode !== 'disc');
+  sel.title = playMode === 'disc' ? sel.dataset.base : (playMode === 'shuffle' ? 'SHUFFLE IS ON: the group’s tracks play in random order. Choose “Play on” to play the disc in order. ' : 'STAY IN GROUP is on: playback stops at the end of the track’s group. Choose “Play on” to carry on through the whole disc. ') + '(Resets to Play on when the program starts.)';
+}
+function setPlayMode(m) { playMode = m; $('playMode').value = m; shuffleDone = new Set(); playHist = []; showPlayMode(); }
+$('playMode').dataset.base = $('playMode').title; showPlayMode();
 $('playMode').addEventListener('change', () => setPlayMode($('playMode').value));
 function scopeOf(num) {                                          // the playable tracks of the group that track `num` is in
   const all = [...trackMap.values()].sort((a, b) => a.number - b.number), i = all.findIndex(x => x.number === num);
@@ -2724,7 +2822,61 @@ const helpText = () => ({
   remove: ['Remove', [
     ['Delete', 'Erases the ticked tracks.'],
     ['Undo last change', 'Puts back the previous order or names. It cannot undo a delete.'],
-    ['Format disc', 'Erases the whole disc.'],
+  ]],
+  convhimd: ['Convert SP Disc to Hi-MD', [
+    ['What it does', [
+      'Turns a standard (SP / LP) disc into a Hi-MD disc, keeping the same music, titles, artists, albums, groups and disc name. A Hi-MD disc can also hold a disc picture, lyrics and more, and an 80-minute disc holds roughly 300 MB as Hi-MD.',
+      'It needs a recorder that also uses Hi-MD (MZ-NH700, MZ-RH1 and so on) and a standard disc with audio on it. Pre-recorded commercial discs and write-protected discs are not offered. When such a disc is loaded, a note under the Recorder card and a flag on this card say it can be converted (the Settings button switches this off).',
+    ]],
+    ['Choose the format', [
+      'The tracks are written back as one of these. The sheet shows each one’s size against what the disc holds as a Hi-MD disc:',
+      '• Hi-SP: ATRAC3+ 256 kbps, the usual Hi-MD quality (the default).',
+      '• Hi-LP: ATRAC3+ 64 kbps, about four times the playing time of Hi-SP, clearly lower quality.',
+      '• A3+ 352 kbps: ATRAC3+ at a higher bit rate than Hi-SP, about 40% bigger.',
+      '• PCM: lossless, but the largest; it keeps exactly what the disc plays.',
+      'Hi-SP, Hi-LP and 352 kbps are made from the SP / LP sound, so there is one more generation of very small quality loss. If the program still has the original file of a track from when it added it, that is used instead.',
+    ]],
+    ['The three steps', [
+      '1. Every track is copied to this PC as FLAC, with its title, artist, album, groups and the disc name, and each copy is checked against the disc’s playing time. If any track cannot be read back, nothing is touched. On an MZ-NH700 this uses the experimental download (tick the box on the sheet) and the cable has to be unplugged and plugged in again afterwards.',
+      '2. The disc is erased and set up as Hi-MD. The recorder switches mode and reconnects, about a minute. Nothing is erased until every track is safe on this PC.',
+      '3. The tracks are written back, the groups and disc name are put back, the disc is read again to check the track count and lengths, and only then is the PC copy deleted. A note appears if a length does not match.',
+    ]],
+    ['If something goes wrong', [
+      '• The saved tracks stay on this PC. Whenever an empty Hi-MD disc is loaded the program offers “Write the saved tracks to this disc?”, also after closing the program.',
+      '• If the recorder refuses to switch to Hi-MD (the sheet says it was rejected), the disc may already be erased. Unplug the recorder, plug it in again, press rescan and use Format (Disc Management) to set the disc up as Hi-MD. The program then offers to write the saved tracks.',
+      '• This app cannot turn the Hi-MD disc back into a standard disc. The recorder’s own menu can, and it erases the disc.',
+    ]],
+  ]],
+  convlpsp: ['Convert LP2/4 Disc to SP', [
+    ['What it does', [
+      'A player without LP support (many from the 1990s) plays an LP2 or LP4 track as silence. This rewrites the LP tracks you choose as SP, which plays everywhere, each in the same place on the disc with the same title, artist and album.',
+      'When a standard disc with LP tracks is loaded, a note under the Recorder card and a flag on this card say so (the Settings button switches this off). Not done on a disc with named groups, on mono LP tracks, on pre-recorded or on write-protected discs.',
+    ]],
+    ['Does it fit?', [
+      'SP takes 2 times (LP2) or 4 times (LP4) the room, so the SP versions of a well-filled LP disc will not all fit. The sheet lists the LP tracks with tick boxes, starts with as many ticked, in disc order, as fit, and shows how much SP time the disc has and what would be left. Convert stays greyed out while the ticked tracks do not fit.',
+    ]],
+    ['Spread over two discs', [
+      'Tick “Spread over two discs” to keep everything. The ticked tracks, in disc order, that fit stay on this disc and are rewritten in place. The rest are copied to this PC and removed from this disc first (which also makes the room), then kept as SP-ready audio until you insert a second standard disc.',
+      '• A note under the Recorder card offers “Write to this disc” whenever a standard disc is loaded, also after the program has been closed and opened again. The tracks are added as SP after anything already on that disc, and the PC copy is deleted only once the disc’s track list shows them all.',
+      '• The second disc needs room for them: an 80-minute disc holds 80 minutes of SP. More than one disc’s worth cannot be spread over two.',
+      '• Until the second disc is written, the tracks for it exist only on this PC (a copy of each LP original is also in Saved copies). “Discard…” on the note deletes them, after a warning.',
+    ]],
+    ['The two steps', [
+      '1. Every ticked track is copied to this PC as FLAC and checked against the disc’s playing time. Nothing on the disc changes until all are safe. On an MZ-NH700 this needs the experimental download (tick the box) and an unplug and replug afterwards.',
+      '2. Each track in turn: a copy of the LP audio goes to Saved copies; the SP version is written (next to the original, or, when the disc is too full, after the original is deleted); the disc’s track list is read back and checked; the SP track is put in the original’s place; the LP original is removed. The recorder makes SP from the decoded sound, so there is one more generation of small quality loss. It does not make an LP track sound better.',
+    ]],
+    ['If something goes wrong', [
+      '• Tracks already converted stay converted if a later one fails or you press Stop after this track.',
+      '• If a problem comes after an original was deleted, its audio is kept in the rescue folder and in the PC copy, and the message says where.',
+    ]],
+  ]],
+  format: ['Format', [
+    ['Format disc', [
+      'Erases the whole disc, tracks, titles, groups and picture, and sets it up empty again. You type FORMAT to confirm, and it cannot be undone.',
+      '• A Hi-MD disc is set up again as an empty Hi-MD disc.',
+      '• A standard disc can be formatted as a standard disc, or, on a Hi-MD recorder such as the MZ-NH700 or MZ-RH1, as a Hi-MD disc: the recorder switches to Hi-MD mode and reconnects, which takes about a minute. This app cannot turn a Hi-MD disc back into a standard one; the recorder’s own menu can.',
+      '• If the recorder refuses the switch (the sheet says it was rejected), unplug and reconnect it, press rescan and use Format again.',
+    ]],
   ]],
   copyout: ['Copy out', [
     ['Save to PC', 'Copies the ticked tracks (or all of them) to your PC as FLAC, WAV or MP3. Nothing is written to the recorder.'],
@@ -3934,29 +4086,221 @@ async function runFormat(mode, typed) {
 // formatted as Hi-MD (the recorder switches mode and reconnects). 3. The tracks are written back (Hi-SP by default), the groups and name are put
 // back, the disc is read again to check, and only then is the PC copy deleted. A saved copy survives closing the program.
 let convertRunning = false, convertResumeShown = false, convertPending = false;
-const CONV_CODECS = [['hisp', 'Hi-SP', 'ATRAC3+ 256 kbps, the usual Hi-MD quality'], ['hilp', 'Hi-LP', 'ATRAC3+ 64 kbps, about four times the playing time of Hi-SP'], ['pcm', 'PCM', 'lossless, but the largest']];
+const CONV_CODECS = [['hisp', 'Hi-SP', 'ATRAC3+ 256 kbps, the usual Hi-MD quality'], ['hilp', 'Hi-LP', 'ATRAC3+ 64 kbps, about four times the playing time of Hi-SP'], ['at3p', 'A3+ 352 kbps', 'ATRAC3+ 352 kbps, higher quality than Hi-SP, about 40% bigger'], ['pcm', 'PCM', 'lossless, but the largest']];
 const CONV_ASK_OFF = 'mdm.askConvertOff', CONV_ASK_DISCS = 'mdm.askConvertDiscs';
 function convertIgnored() { try { return JSON.parse(lsRead(CONV_ASK_DISCS, '[]')) || []; } catch (e) { return []; } }
 function convertGroupRefresh(canHimd) {
   api().convert_status().then(s => {
     convertPending = !!(s && s.pending);
-    $('convertGroup').classList.toggle('hidden', !((netmd && canHimd) || convertPending));
+    $('convertGroup').classList.toggle('hidden', !((netmd && canHimd) || convertPending)); convCardSync();
   }).catch(() => {});
 }
 $('convert').addEventListener('click', () => openConvert());
 // A standard disc with audio, on a recorder that can also use Hi-MD: offer to convert it (once per run per disc; it can be switched off).
-// It is only a note under the Recorder card (no window opens by itself); the Convert button in Disc Management does the same.
+// It is only a note under the Recorder card (no window opens by itself); the Convert button in the Disc Conversion card does the same.
 function convertHintRefresh(d) {
   const box = $('convertHint');
   const show = netmd && fmtInfo.canHimd && d && d.tracks && d.tracks.length && !d.commercial && !d.writeProtected &&
-    lsRead(CONV_ASK_OFF, '0') !== '1' && !convertIgnored().includes(d.key);
+    appSettings.askConvert && lsRead(CONV_ASK_OFF, '0') !== '1' && !convertIgnored().includes(d.key);
   box.classList.toggle('hidden', !show);
+  convSuggest.himd = !!show; convBadgeSync();
   if (!show) return;
   $('convertHintText').textContent = 'This standard disc (' + d.tracks.length + (d.tracks.length === 1 ? ' track' : ' tracks') + ') can be set up as a Hi-MD disc, keeping the same music as Hi-SP (or Hi-LP / PCM) and adding a disc picture, lyrics and groups. ' +
     'The tracks are saved on this PC first; nothing is erased until they are all safe.';
   $('convertHintGo').onclick = () => openConvert();
   $('convertHintHide').onclick = () => { const a = convertIgnored().filter(k => k !== d.key); a.push(d.key); lsWrite(CONV_ASK_DISCS, JSON.stringify(a.slice(-300))); box.classList.add('hidden'); };
-  $('convertHintNever').onclick = () => { lsWrite(CONV_ASK_OFF, '1'); box.classList.add('hidden'); toast('The note is switched off. Convert to Hi-MD stays in Disc Management.'); };
+}
+// ---- LP to SP: LP2 / LP4 tracks play as silence in players without LP support -----------------------------------------------------------
+// A note under the Recorder card (and a button in the Disc Conversion card) opens a list of the LP tracks; the ticked ones are rewritten as SP one at a time,
+// each in its own place on the disc, after a checked copy of it is on this PC. SP takes 2x (LP2) or 4x (LP4) the room, so the list shows what fits.
+const LPSP_DISCS = 'mdm.askLpSpDiscs';
+function lpSpIgnored() { try { return JSON.parse(lsRead(LPSP_DISCS, '[]')) || []; } catch (e) { return []; } }
+let lpSpRunning = false;
+function convCardSync() { $('convertNone').classList.toggle('hidden', !($('convertGroup').classList.contains('hidden') && $('lpSpGroup').classList.contains('hidden'))); }
+function lpSpHintRefresh(d) {
+  lpSpSpillRefresh();
+  const lp = netmd && d && d.tracks ? d.tracks.filter(t => t.codec === 'LP2' || t.codec === 'LP4') : [];
+  const eligible = lp.length > 0 && !d.commercial && !d.writeProtected;
+  $('lpSpGroup').classList.toggle('hidden', !eligible); convCardSync();
+  const box = $('lpSpHint');
+  const show = eligible && appSettings.askLpToSp && !lpSpIgnored().includes(d.key);
+  box.classList.toggle('hidden', !show);
+  convSuggest.lpsp = !!show; convBadgeSync();
+  if (!show) return;
+  $('lpSpHintText').textContent = lp.length + (lp.length === 1 ? ' track is' : ' tracks are') + ' recorded in LP2 / LP4. A player without LP support plays ' + (lp.length === 1 ? 'it' : 'them') + ' as silence. ' +
+    'The app can rewrite ' + (lp.length === 1 ? 'it' : 'them') + ' as SP, which plays on every player (SP takes 2 to 4 times the room, so not every track of a full disc fits; you choose).';
+  $('lpSpHintGo').onclick = () => openLpSp();
+  $('lpSpHintHide').onclick = () => { const a = lpSpIgnored().filter(k => k !== d.key); a.push(d.key); lsWrite(LPSP_DISCS, JSON.stringify(a.slice(-300))); box.classList.add('hidden'); };
+}
+$('lpSp').addEventListener('click', () => openLpSp());
+async function openLpSp() {
+  if (uploading || lpSpRunning || convertRunning) return;
+  stopPlayer();
+  const closeRow = el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet }));
+  openFloat(el('h2', { textContent: 'Convert LP2/4 Disc to SP' }), el('div', { className: 'notice', textContent: 'Checking the disc…' }));
+  const plan = await api().lpsp_plan(current);
+  if (plan.error) {
+    if (plan.pending) { lpSpSpillOffer(); return; }
+    openFloat(el('h2', { textContent: 'Convert LP2/4 Disc to SP' }), el('div', { className: 'notice warn', textContent: plan.error }), closeRow); return;
+  }
+  const rows = plan.tracks.map(t => ({ t, cb: el('input', { type: 'checkbox', disabled: !t.how }), note: el('span', { className: 'meta' }) }));
+  const exploitCb = el('input', { type: 'checkbox', checked: false });
+  const spanCb = el('input', { type: 'checkbox', checked: false });
+  const summary = el('div', { className: 'notice' }), go = el('button', { className: 'primary', textContent: 'Convert' });
+  const mins = x => (x / 60).toFixed(x >= 600 ? 0 : 1) + ' min';
+  const DISC2_MAX = 80 * 60;                                       // an 80-minute disc as SP
+  let split = { keep: [], spill: [] };
+  // Which of the ticked tracks stay on this disc and which go to a second disc. On one disc, every ticked track must fit (the SP version needs
+  // its length free, or nearly that once the LP original is gone). Spread over two: the tracks for the second disc leave this disc first, which
+  // frees room, so the longest run of ticked tracks (in disc order) that fits stays and the rest goes to the second disc.
+  function recompute() {
+    const ticked = rows.filter(r => r.cb.checked);
+    rows.forEach(r => { r.note.textContent = ''; });
+    const secs = ticked.reduce((a, r) => a + r.t.seconds, 0);
+    let bad = false, left = plan.leftSp;
+    split = { keep: [], spill: [] };
+    if (!spanCb.checked) {
+      ticked.forEach(r => {
+        const fit = r.t.seconds + 3 < left + r.t.seconds / r.t.ratio;
+        if (!fit) { bad = true; r.note.textContent = ' – no room left for this one'; } else left -= r.t.seconds * (1 - 1 / r.t.ratio) + 1;
+        split.keep.push(r.t.number);
+      });
+    } else {
+      const budget = plan.leftSp + ticked.reduce((a, r) => a + r.t.seconds / r.t.ratio, 0) - 3;
+      let used = 0, full = false;
+      ticked.forEach(r => {
+        if (!full && used + r.t.seconds + 1 <= budget) { used += r.t.seconds + 1; split.keep.push(r.t.number); r.note.textContent = ' – stays on this disc'; }
+        else { full = true; split.spill.push(r.t.number); r.note.textContent = ' – goes to the second disc'; }
+      });
+      left = budget - used;
+    }
+    const spillSecs = rows.filter(r => split.spill.includes(r.t.number)).reduce((a, r) => a + r.t.seconds, 0);
+    const needEx = ticked.some(r => r.t.how === 'patch');
+    const tooBig = spillSecs > DISC2_MAX;
+    const noFit = bad;
+    summary.className = 'notice' + (noFit || tooBig ? ' warn' : '');
+    summary.textContent = !ticked.length ? 'Tick the tracks to rewrite as SP.'
+      : spanCb.checked
+        ? ticked.length + ' track' + (ticked.length === 1 ? '' : 's') + ' (' + mins(secs) + ' as SP). This disc has about ' + mins(plan.leftSp) + ' of SP free. ' +
+          (split.spill.length ? split.keep.length + ' stay on this disc as SP and ' + split.spill.length + ' (' + mins(spillSecs) + ') go to a second disc.' : 'They all fit on this disc, so no second disc is needed.') +
+          (tooBig ? ' That is more than one disc holds: untick some.' : '')
+        : ticked.length + ' track' + (ticked.length === 1 ? '' : 's') + ' (' + mins(secs) + ') chosen. The disc has about ' + mins(plan.leftSp) + ' of SP free' +
+          (noFit ? ' – not all of these fit. Untick some, or spread them over two discs below.' : '; about ' + mins(Math.max(0, left)) + ' would be left.');
+    go.disabled = !ticked.length || noFit || tooBig || (needEx && !exploitCb.checked) || plan.pcFree < 400 * 1000 * 1000;
+    go.textContent = split.spill.length ? 'Convert and save the rest for a second disc' : 'Convert';
+  }
+  let room = plan.leftSp;                                         // default ticks: as many LP tracks as fit on this disc, in disc order, that can be read back
+  rows.forEach(r => {
+    const fit = !!r.t.how && r.t.seconds + 3 < room + r.t.seconds / r.t.ratio;
+    r.cb.checked = fit;
+    if (fit) room -= r.t.seconds * (1 - 1 / r.t.ratio) + 1;
+    r.cb.onchange = recompute;
+  });
+  if (!rows.some(r => r.cb.checked)) rows.forEach(r => { r.cb.checked = !!r.t.how; spanCb.checked = true; });          // nothing fits on one disc: start with two
+  else if (rows.some(r => r.t.how && !r.cb.checked)) { /* some do not fit: the second-disc option below handles them */ }
+  exploitCb.onchange = recompute; spanCb.onchange = recompute;
+  const how = h => h === 'copy' ? 'a saved copy is on this PC' : h === 'direct' ? 'read back from the recorder' : h === 'patch' ? 'needs the experimental download' : 'cannot be read back from this recorder';
+  const list = el('div', { className: 'filelist' }, ...rows.map(r => el('label', { className: 'file', style: 'grid-template-columns:auto 1fr;gap:10px;align-items:start;cursor:pointer' }, r.cb,
+    el('span', {}, el('b', { textContent: r.t.number + '. ' + r.t.title }), el('div', { className: 'meta', style: 'white-space:normal' }, r.t.codec + ' · ' + len(r.t.seconds) + ' · ' + how(r.t.how), r.note)))));
+  const parts = [el('h2', { textContent: 'Convert LP2/4 Disc to SP' }),
+    el('div', { className: 'sub', textContent: 'Players without LP support play LP2 and LP4 tracks as silence. The ticked tracks are copied to this PC first, then each is written again as SP in the same place on the disc, checked, and only then is its LP original removed.' }),
+    list,
+    el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:flex-start;cursor:pointer' }, spanCb,
+      el('span', {}, el('b', { textContent: 'Spread over two discs' }), el('br'), 'LP2 / LP4 fits twice or four times as much music on a disc as SP. When the SP tracks do not all fit, the ones that do stay on this disc and the rest are saved on this PC (and removed from this disc) until you insert a second disc, which they are then written to.')),
+    summary];
+  if (plan.mono.length) parts.push(el('div', { className: 'notice', textContent: 'Mono LP track' + (plan.mono.length > 1 ? 's ' : ' ') + plan.mono.join(', ') + ' cannot be converted by this app.' }));
+  if (plan.needsExploit) parts.push(el('label', { className: 'notice warn', style: 'display:flex;gap:8px;align-items:flex-start;cursor:pointer' }, exploitCb,
+    el('span', { textContent: 'Allow the experimental download for the tracks marked “needs the experimental download” (this recorder cannot send audio back by itself). It is slow, and you will be asked to unplug and replug the recorder afterwards.' })));
+  parts.push(el('div', { className: 'notice', textContent: 'SP is made by the recorder from the decoded sound, so there is one more generation of small quality loss; converting does not make an LP track sound better. A checked copy of every track is made on this PC first, and a copy of each LP original is kept in Saved copies. Do not unplug the recorder until it finishes. Writing takes about as long as each track plays.' }));
+  go.onclick = () => { const k = split.keep.slice(), s = split.spill.slice(); closeSheet(); runLpSp(k, s, plan.needsExploit && exploitCb.checked); };
+  parts.push(el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  openFloat(...parts);
+  recompute();
+}
+async function runLpSp(keep, spill, exploit) {
+  lpSpRunning = true; uploading = true; stopPlayer();
+  // stage 1: copy the tracks to this PC (nothing on the disc changes)
+  let prog = liveProgress('Starting…', 4, true);
+  const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; cancel.textContent = 'Stopping…'; api().save_cancel(); } });
+  openSheet(el('h2', { textContent: 'Copying the tracks to this PC…' }), prog.what, prog.bar, prog.stallBox,
+    el('div', { className: 'notice', textContent: 'Step 1 of 2. The disc is not changed yet.' }), el('div', { className: 'row' }, cancel));
+  window.onSaveProgress = m => prog.set('Copying track ' + (m.n + 1) + ' of ' + m.count + ' to this PC: ' + m.name + (m.total ? '  ' + Math.round(100 * m.done / m.total) + '%' : '…'), m.total ? m.done / m.total : 0, (m.n + (m.total ? m.done / m.total : 0)) / m.count);
+  const rd = await api().lpsp_read(current, keep, spill, !!exploit);
+  window.onSaveProgress = null; prog.stop();
+  const end = () => { uploading = false; lpSpRunning = false; };
+  if (rd.cancelled) { end(); closeSheet(); toast('Cancelled. The disc was not changed.'); return; }
+  if (rd.error) { end(); errorSheet('The disc was not changed', rd.error, { kept: 'Nothing was written or erased on the disc.', onClose: () => scan() }); return; }
+  if (rd.exploitUsed) {                                                                    // the recorder was patched in memory: unplug it before it is written to
+    await new Promise(res => openFloat(el('h2', { textContent: 'Unplug and replug the recorder' }),
+      el('div', { className: 'notice warn', textContent: 'The tracks are saved on this PC. The recorder was patched in memory to read them: unplug its USB cable, plug it back in, wait about ten seconds, then press Continue. The disc is not changed yet.' }),
+      el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Continue', onclick: res }))));
+    await scan();
+  }
+  // stage 2: change the disc
+  prog = liveProgress('Starting…', 4, true);
+  const stop = el('button', { textContent: 'Stop after this track', onclick: () => { stop.disabled = true; stop.textContent = 'Stopping…'; api().edit_cancel(); } });
+  openSheet(el('h2', { textContent: 'Converting to SP…' }), prog.what, prog.bar, prog.stallBox,
+    el('div', { className: 'notice warn', textContent: 'Step 2 of 2. Do not unplug the recorder or close this window until it finishes.' }), el('div', { className: 'row' }, stop));
+  window.onEditProgress = m => {
+    const step = m.count > 1 && m.name && m.phase !== 'deleting' ? ' (' + (m.n + 1) + ' of ' + m.count + ')' : '';
+    prog.set((EDIT_VERBS[m.phase] || '') + (m.name ? ' “' + m.name + '”' : '') + step + '…' + (m.total ? ' ' + Math.round(100 * m.done / m.total) + '%' : ''), m.total ? m.done / m.total : 0,
+      m.count > 1 && m.total ? (m.n + m.done / m.total) / m.count : undefined);
+  };
+  const r = await api().lpsp_run(current);
+  prog.stop(); window.onEditProgress = null; end();
+  await load();
+  await lpSpSpillRefresh();
+  const done = (r && r.done) || [];
+  if (r.error) {
+    errorSheet(r.cancelled ? 'Stopped' : 'It didn’t finish', r.error, { kept: 'The copies of the tracks are on this PC (Saved copies, and the folder named above if an original was already deleted).', onClose: () => load() });
+    return;
+  }
+  const parts = [el('h2', { textContent: 'Done' }),
+    el('div', { className: 'notice', textContent: done.length + (done.length === 1 ? ' track was' : ' tracks were') + ' rewritten as SP, checked against the disc’s track list and put back in ' + (done.length === 1 ? 'its' : 'their') + ' place. ' +
+      'The LP originals were removed; a copy of each is in Saved copies on this PC until you remove it there. Titles, artists and albums were kept.' })];
+  if (r.spill) {
+    parts.push(el('div', { className: 'notice warn', textContent: r.spill + (r.spill === 1 ? ' track' : ' tracks') + ' (' + len(r.spillSeconds) + ' as SP) did not fit and were taken off this disc. They are saved on this PC as SP-ready audio, waiting for a second disc: take this disc out, put a standard disc with room in the recorder, then press the button below (or any time later, also after closing the program).' }));
+    parts.push(el('div', { className: 'row' }, el('button', { textContent: 'Later', onclick: closeSheet }), el('button', { className: 'primary', textContent: 'The second disc is in: write the tracks', onclick: () => { closeSheet(); lpSpSpillGo(); } })));
+  } else parts.push(el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
+  openSheet(...parts);
+}
+// The tracks waiting for a second disc: a note under the Recorder card whenever a standard disc is loaded, and the sheet after the first disc is done.
+async function lpSpSpillRefresh() {
+  let p = null;
+  try { p = (await api().lpsp_spill_status()).pending; } catch (e) { /* none */ }
+  const box = $('lpSpSpill');
+  box.classList.toggle('hidden', !(p && netmd));
+  if (!p || !netmd) return;
+  $('lpSpSpillText').textContent = p.tracks + (p.tracks === 1 ? ' converted track (' : ' converted tracks (') + len(p.seconds) + ' as SP) are saved on this PC, waiting for a second standard disc with room. Insert that disc and press Write; the tracks are added after anything already on it.';
+  $('lpSpSpillGo').onclick = () => lpSpSpillGo();
+  $('lpSpSpillDrop').onclick = () => openFloat(el('h2', { textContent: 'Throw the saved tracks away?' }),
+    el('div', { className: 'notice warn', textContent: 'The ' + p.tracks + ' tracks were already removed from the first disc, so this PC copy is the only one left. Only discard it if you do not need them (a copy of each LP original is also in Saved copies).' }),
+    el('div', { className: 'row' }, el('button', { textContent: 'Keep them', onclick: closeSheet }),
+      el('button', { className: 'danger', textContent: 'Discard the saved tracks', onclick: async () => { await api().lpsp_discard(); closeSheet(); lpSpSpillRefresh(); toast('Saved tracks deleted'); } })));
+}
+async function lpSpSpillOffer() {
+  const st = await api().lpsp_spill_status();
+  if (!st.pending) { closeSheet(); return; }
+  openFloat(el('h2', { textContent: 'Tracks are waiting for a second disc' }),
+    el('div', { className: 'notice', textContent: st.pending.tracks + ' converted tracks (' + len(st.pending.seconds) + ' as SP) are saved on this PC. Put a standard disc with room in the recorder, then press Write.' }),
+    el('div', { className: 'row' }, el('button', { textContent: 'Later', onclick: closeSheet }), el('button', { className: 'primary', textContent: 'Write them to the disc in the recorder', onclick: () => { closeSheet(); lpSpSpillGo(); } })));
+}
+async function lpSpSpillGo() {
+  if (uploading) return;
+  uploading = true; stopPlayer();
+  await scan();                                                                         // pick up the disc that was just inserted
+  const prog = liveProgress('Starting…', 4, true);
+  openSheet(el('h2', { textContent: 'Writing to the second disc…' }), prog.what, prog.bar, prog.stallBox, el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder or close this window until it finishes.' }));
+  let nSpill = 1; try { nSpill = (await api().lpsp_spill_status()).pending.tracks; } catch (e) { /* one */ }
+  window.onUploadProgress = writeProgress(prog, nSpill, m => m.name, '', 0, 1);
+  const r = await api().lpsp_spill_write(current);
+  prog.stop(); window.onUploadProgress = null; uploading = false;
+  await load(); await lpSpSpillRefresh();
+  if (r.error) { errorSheet(r.noRoom ? 'No room on this disc' : 'It didn’t finish', r.error, { kept: 'The tracks are still saved on this PC.', onClose: () => load() }); return; }
+  const parts = [el('h2', { textContent: 'Second disc done' }), el('div', { className: 'notice', textContent: r.tracks + (r.tracks === 1 ? ' track is' : ' tracks are') + ' now on this disc as SP, read back and checked against its track list. The saved copy on this PC ' + ((r.notes || []).length ? 'was kept, because of the notes below.' : 'has been removed.') })];
+  for (const t of r.notes || []) parts.push(el('div', { className: 'notice warn', textContent: t }));
+  parts.push(el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: closeSheet })));
+  openSheet(...parts);
 }
 async function openConvert() {
   if (uploading || convertRunning) return;
@@ -4355,9 +4699,10 @@ async function startAdd(paths) {
     const title = el('input', { value: f.title, maxLength: 120, placeholder: 'Title' });
     const artist = el('input', { value: f.artist, maxLength: 120, placeholder: 'Artist' });
     if (p.netmd) artist.style.display = 'none';                                       // standard discs keep track titles only
-    list.append(el('div', { className: 'file', style: p.netmd ? 'grid-template-columns:auto 1fr auto' : '' }, el('span', { className: 'chip', textContent: (f.label || f.kind).toUpperCase() }), title, artist,
+    const cb = el('input', { type: 'checkbox', checked: true, title: 'Untick to leave this file out', style: 'width:auto', onchange: () => refresh() });
+    list.append(el('div', { className: 'file', style: 'grid-template-columns:auto auto 1fr ' + (p.netmd ? '' : '1fr ') + 'auto' }, cb, el('span', { className: 'chip', textContent: (f.label || f.kind).toUpperCase() }), title, artist,
       el('span', { className: 'meta', textContent: fmtSize(f.bytes) + (f.seconds ? ' · ' + len(f.seconds) : '') })));
-    rows.push({ f, title, artist });
+    rows.push({ f, title, artist, cb });
   }
   // Recording formats. A standard disc takes SP / LP2 / LP4 for every file. A Hi-MD disc takes one format for every file, or
   // "automatic" (MP3 stays MP3, everything else becomes lossless PCM). ATRAC3+ (Hi-SP, Hi-LP, 352 kbps) is encoded on this PC first.
@@ -4365,9 +4710,15 @@ async function startAdd(paths) {
   const store = p.netmd ? 'mdFormat' : 'hmdFormat';
   let kbps = 192;
   try { const k = Number(localStorage.getItem('hmdMp3Kbps')); if ([128, 192, 256, 320].includes(k)) kbps = k; } catch (e) { /* no storage */ }
-  const lpTooLong = fmt => (fmt === 'lp2' || fmt === 'lp4') && good.some(f => f.seconds > 90 * 60);
-  const fits = fmt => p.netmd ? (p.needSeconds <= p.leftSeconds[fmt] && !p.writeProtected && (fmt === 'sp' || good.every(f => f.seconds <= p.lpMaxSeconds)))
-    : (fmt === 'mp3' ? p.fitsMp3[kbps] : p.fitsByFormat[fmt]) && !lpTooLong(fmt);
+  // Only the ticked files count: untick a file and the fit check is worked out again from the rest (each file's own need comes from the plan).
+  const picked = () => rows.filter(r => r.cb.checked);
+  const lpTooLong = fmt => (fmt === 'lp2' || fmt === 'lp4') && picked().some(r => r.f.seconds > 90 * 60);
+  const needNet = () => picked().reduce((n, r) => n + Math.ceil(r.f.seconds), 0);
+  const needMd = fmt => picked().reduce((n, r) => n + (r.f.need ? (fmt === 'mp3' ? r.f.need.mp3[kbps] : r.f.need.byFormat[fmt]) : 0), 0);
+  const fits = fmt => picked().length > 0 && (p.netmd ? (needNet() <= p.leftSeconds[fmt] && !p.writeProtected && (fmt === 'sp' || picked().every(r => r.f.seconds <= p.lpMaxSeconds)))
+    : (needMd(fmt) < p.freeBytes * 0.98 && !lpTooLong(fmt)));
+  const fitBtn = el('button', { textContent: 'Untick files from the end until the rest fit', title: 'Leaves out the last files in the list, one by one, until the ticked ones fit in this format', onclick: () => {
+    const on = picked(); for (let i = on.length - 1; i >= 0 && !fits(chosen); i--) on[i].cb.checked = false; refresh(); } });
   const info = el('div', { className: 'notice' });
   const warn = el('div', { className: 'notice warn' });
   const noteEl = el('div', { className: 'notice warn' });
@@ -4378,16 +4729,17 @@ async function startAdd(paths) {
     ...[128, 192, 256, 320].map(k => el('option', { value: k, textContent: k + ' kbps', selected: k === kbps })));
   const refresh = () => {
     if (p.netmd) {
-      info.textContent = 'The disc has ' + len(p.leftSeconds[chosen]) + ' of ' + chosen.toUpperCase() + ' free (' + p.trackCountNow + ' tracks now). These files need ' + len(p.needSeconds) + '.';
-      const tooLong = chosen !== 'sp' && good.some(f => f.seconds > p.lpMaxSeconds);
+      info.textContent = 'The disc has ' + len(p.leftSeconds[chosen]) + ' of ' + chosen.toUpperCase() + ' free (' + p.trackCountNow + ' tracks now). The ' + picked().length + ' ticked ' + (picked().length === 1 ? 'file needs ' : 'files need ') + len(needNet()) + '.';
+      const tooLong = chosen !== 'sp' && picked().some(r => r.f.seconds > p.lpMaxSeconds);
       warn.textContent = p.writeProtected ? 'The disc is write-protected.'
         : tooLong ? 'LP2 and LP4 can only encode files up to ' + len(p.lpMaxSeconds) + ' long. Choose SP or split the file.'
-        : !fits(chosen) ? 'They will not fit in ' + chosen.toUpperCase() + '. Remove some files or choose a smaller format.' : '';
+        : !picked().length ? 'Tick at least one file to add.'
+        : !fits(chosen) ? 'They will not fit in ' + chosen.toUpperCase() + '. Untick some files or choose a smaller format.' : '';
       noteEl.textContent = p.note + ' Do not unplug the recorder while it works.';
     } else {
-      const need = chosen === 'mp3' ? p.needMp3[kbps] : p.needByFormat[chosen];
-      info.textContent = 'The disc has ' + fmtSize(p.freeBytes) + ' free (' + p.trackCountNow + ' tracks now). These files need about ' + fmtSize(need) + '.';
-      warn.textContent = lpTooLong(chosen) ? 'LP2 and LP4 can only encode files up to 90 minutes long.' : !fits(chosen) ? 'They will not fit. Remove some files or choose a smaller format.' : '';
+      const need = needMd(chosen);
+      info.textContent = 'The disc has ' + fmtSize(p.freeBytes) + ' free (' + p.trackCountNow + ' tracks now). The ' + picked().length + ' ticked ' + (picked().length === 1 ? 'file needs' : 'files need') + ' about ' + fmtSize(need) + '.';
+      warn.textContent = lpTooLong(chosen) ? 'LP2 and LP4 can only encode files up to 90 minutes long.' : !picked().length ? 'Tick at least one file to add.' : !fits(chosen) ? 'They will not fit. Untick some files or choose a smaller format.' : '';
       const secure = chosen === 'auto' ? p.hasNonMp3 : chosen !== 'mp3';                // everything except MP3 uses the copy-protection session
       noteEl.textContent = (secure ? 'Anything except MP3 needs the disc’s copy-protection session, which renames the disc’s data files and rewrites its integrity data.'
         : 'MP3 audio is added to the end of the data file and the track index is updated; no copy-protection session is needed.') +
@@ -4395,7 +4747,9 @@ async function startAdd(paths) {
     }
     kbpsPick.style.display = chosen === 'mp3' ? '' : 'none';
     warn.style.display = warn.textContent ? '' : 'none';
-    go.disabled = !good.length || !fits(chosen);
+    fitBtn.style.display = picked().length && !fits(chosen) && !p.writeProtected ? '' : 'none';
+    go.disabled = !fits(chosen);
+    go.textContent = 'Add ' + picked().length + (picked().length === 1 ? ' track' : ' tracks') + ' to the disc';
   };
   go.textContent = 'Add ' + good.length + (good.length === 1 ? ' track' : ' tracks') + ' to the disc';
   const gc = p.netmd ? null : groupChoice();
@@ -4405,8 +4759,8 @@ async function startAdd(paths) {
   const artistBox = el('input', { type: 'checkbox', checked: artistFirst, onchange: () => { try { localStorage.setItem('mdArtistInTitle', artistBox.checked ? '1' : '0'); } catch (e) { /* no storage */ } } });
   const artistRow = p.netmd ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, artistBox,
     el('span', { textContent: 'Put the artist in front of each title (“Artist - Title”), because a standard disc cannot store an artist. Uses up more of the disc’s limited title space.' })) : '';
-  go.onclick = () => runUpload(rows, chosen, kbps, gc && gc.get(), p.netmd && artistBox.checked);
-  const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like. Nothing has been written yet.' }), list];
+  go.onclick = () => runUpload(picked(), chosen, kbps, gc && gc.get(), p.netmd && artistBox.checked);
+  const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like, and untick any file you do not want to add. Nothing has been written yet.' }), list];
   {
     const names = p.netmd
       ? { sp: ['SP', 'best sound, 80 minutes on a disc'], lp2: ['LP2', 'about 2 × as much music, good sound'], lp4: ['LP4', 'about 4 × as much music, lower quality'] }
@@ -4426,7 +4780,7 @@ async function startAdd(paths) {
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The ATRAC3+ options are encoded on this PC (this takes about a minute for a three-minute track). They are new: try one short track on your recorder before adding a lot.' }));
     parts.push(pick);
   }
-  parts.push(...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
 }async function runUpload(rows, format, kbps, group, artistInTitle) {
@@ -5161,7 +5515,7 @@ async function showVersion() {
     v.textContent = 'v' + i.version; v.title = 'MiniDisc Manager ' + i.version + ' - Copyright (c) 2026 Vinny Powell' + (i.packaged ? '' : ' (running from the source folder)');
   } catch (e) { /* the number is only informative */ }
 }
-window.addEventListener('pywebviewready', () => { showVersion(); firstRunNotice(); scan(); });
+window.addEventListener('pywebviewready', async () => { await appSettingsLoad(); showVersion(); firstRunNotice(); scan(); });
 
 // ---- Edit the artist / album of the ticked tracks in one go (Hi-MD) -----------------------------------------------------------------
 function editDetailsStandard() {                                    // a standard disc: titles only, so the artist goes in front of the titles and the album + artist name the disc
@@ -5523,7 +5877,7 @@ function makeTabs(cardId, classes, remember, names) {                 // names: 
   pick(active);
 }
 makeTabs('recordCard', ['g-add', 'g-label'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc labelling' });
-makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove'], 'mdm.tab.mgmt');
+makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove', 'g-format'], 'mdm.tab.mgmt');
 makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-check', 'g-copyout'], 'mdm.tab.extras');
 
 // ---- Collapsible cards: click a card title to fold the card down to just its title (remembered per card) ------------------
@@ -5544,14 +5898,16 @@ document.querySelectorAll('section.card').forEach((card, i) => {
 // (CARD_W) and from how many cells share its row, so a card that is moved is resized to suit its new place (its content follows its width).
 // Drag a card by the ⠿ at the end of its title: drop on the left / right edge of another card for a new column beside it, on its top / bottom half
 // to stack it above / below, or on the line between two rows (or above / below them all) for a row of its own. Kept in localStorage (mdm.layout).
-const CARD_NAMES = { disc: 'Disc Information', record: 'Recording', lyrics: 'Lyrics', mgmt: 'Disc Management', extras: 'Disc Extras', rec: 'Recorder', tracks: 'Tracks' };
-const CARD_W = { disc: 1.2, record: 1, lyrics: 1, mgmt: 1.3, extras: 1.3, rec: .8, tracks: 1 };
+const CARD_NAMES = { disc: 'Disc Information', record: 'Recording', lyrics: 'Lyrics', mgmt: 'Disc Management', convert: 'Disc Conversion', extras: 'Disc Extras', rec: 'Recorder', tracks: 'Tracks' };
+const CARD_W = { disc: 1.2, record: 1, lyrics: 1, mgmt: 1.3, convert: 1.3, extras: 1.3, rec: .8, tracks: 1 };
 const LAYOUT_KEY = 'mdm.layout';
-const defaultLayout = () => ({ rows: [[['disc'], ['record', 'lyrics'], ['mgmt', 'extras'], ['rec']], [['tracks']]], hidden: [] });
+const defaultLayout = () => ({ rows: [[['disc'], ['record', 'lyrics'], ['mgmt', 'convert', 'extras'], ['rec']], [['tracks']]], hidden: [] });
 // A layout saved before the Lyrics card existed gets it added under Recording, everything else stays where it was.
 const withLyrics = l => { try { if (l && Array.isArray(l.rows) && !l.rows.flat(2).includes('lyrics')) { const cell = l.rows.flat().find(c => Array.isArray(c) && c.includes('record')); if (cell) cell.splice(cell.indexOf('record') + 1, 0, 'lyrics'); else if (l.rows[0]) l.rows[0].push(['lyrics']); } } catch (e) { /* not a layout */ } return l; };
+// A layout saved before the Disc Conversion card existed gets it added under Disc Management, everything else stays where it was.
+const withConvert = l => { try { if (l && Array.isArray(l.rows) && !l.rows.flat(2).includes('convert')) { const cell = l.rows.flat().find(c => Array.isArray(c) && c.includes('mgmt')); if (cell) cell.splice(cell.indexOf('mgmt') + 1, 0, 'convert'); else if (l.rows[0]) l.rows[0].push(['convert']); } } catch (e) { /* not a layout */ } return l; };
 const layoutOk = l => { try { return l.rows.every(r => Array.isArray(r) && r.every(c => Array.isArray(c) && c.length)) && l.rows.flat(2).slice().sort().join() === Object.keys(CARD_NAMES).sort().join() && Array.isArray(l.hidden) && l.hidden.every(h => h in CARD_NAMES); } catch (e) { return false; } };
-let layout = (() => { try { const l = withLyrics(JSON.parse(viewGet(LAYOUT_KEY))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } return defaultLayout(); })();
+let layout = (() => { try { const l = withConvert(withLyrics(JSON.parse(viewGet(LAYOUT_KEY)))); if (layoutOk(l)) return l; } catch (e) { /* none saved */ } return defaultLayout(); })();
 const saveLayout = () => viewSet(LAYOUT_KEY, JSON.stringify(layout));
 const cardEl = id => document.querySelector('section.card[data-card="' + id + '"]');
 function renderBoard() {

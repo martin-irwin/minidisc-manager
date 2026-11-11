@@ -540,6 +540,11 @@ const commands = {
         try {
             const { himd } = ctx;
             const infos = files.map(f => { try { return describe(f); } catch (e) { return { path: typeof f === 'string' ? f : f.path, error: e.message }; } });
+            for (const i of infos) {                                  // what each file alone needs, so the page can add up only the files that stay ticked
+                if (i.error) continue;
+                i.need = { byFormat: Object.fromEntries(['auto', 'pcm', 'lp2', 'lp4', 'at3p', 'hisp', 'hilp'].map(k => [k, blocksNeeded(i, k) * himdjs.BLOCK_SIZE])),
+                           mp3: Object.fromEntries(MP3_RATES.map(k => [k, blocksNeeded(i, 'mp3', k) * himdjs.BLOCK_SIZE])) };
+            }
             const space = await ctx.fsDriver.statFilesystem();
             const needFor = (fmt, kbps) => infos.reduce((n, i) => n + (i.error ? 0 : blocksNeeded(i, fmt, kbps)), 0) * himdjs.BLOCK_SIZE;
             const needMp3 = Object.fromEntries(MP3_RATES.map(k => [k, needFor('mp3', k)]));

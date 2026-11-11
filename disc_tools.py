@@ -353,7 +353,7 @@ class DiscToolsMixin:
                 return self._run_helper('format', {})
             on_disc = [(t['title'], t['seconds']) for t in (self._tracks or [])]
             say('Erasing the disc…')
-            res = self._run_helper('format', {'mode': mode}, helper=NETMD_HELPER)
+            res = self._run_helper('format', {'mode': mode}, helper=NETMD_HELPER, idle_timeout=300)      # the recorder normally answers within a minute; 2026-11-11 one never did and the page waited for ever
             if 'error' not in res:
                 for title, seconds in on_disc:                                # the PC copies of the erased tracks go with them
                     self._drop_copy(title, seconds)

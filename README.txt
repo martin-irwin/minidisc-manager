@@ -12,13 +12,18 @@ The window
   * Recording: tabs "Add tracks" and "Disc labelling". Add tracks: Add tracks from PC..., Rip CD..., Rip Yoto Card..., Send to Yoto Card...,
     Add tracks from Bandcamp..., Add tracks from SoundCloud..., Add tracks from Internet Radio... and a tick box "Put each batch of added
     tracks in a new group" (see Groups). Disc labelling: Make disc label....
-  * Disc Management: tabs Arrange, Groups, Auto split & name, Clone and Remove:
+  * Disc Management: tabs Arrange, Groups, Auto split & name, Clone, Remove and Format:
       Arrange              Move...  Split...  Combine...  Edit details...  Fade & level...
       Groups               Group by album...  Make group...  Add to group...  Ungroup...  Delete group...
       Auto split & name    Auto split & name...
       Clone                Clone disc...
-      Remove               Delete...  Undo last change  Format disc...
-  * Disc Extras (under Disc Management): tabs Identify (Search for album..., Paste a track list..., Listen to the tracks...), Lyrics,
+      Remove               Delete...  Undo last change
+      Format               Format disc...
+  * Disc Conversion (under Disc Management): two sections that appear only when they apply to the loaded disc: "Convert SP Disc to Hi-MD"
+    (Convert to Hi-MD...) and "Convert LP2/4 Disc to SP" (Convert LP to SP...). See the two chapters below. When a conversion is
+    possible for the loaded disc and its switch in Settings is on (and its note has not been hidden for this disc), a bright pulsing
+    "Suggestion" flag appears in the card's title, even when the card is folded, and the section concerned is outlined.
+  * Disc Extras (under Disc Conversion): tabs Identify (Search for album..., Paste a track list..., Listen to the tracks...), Lyrics,
     Check (Check this disc...) and Copy out (Save to PC..., Burn Audio CD..., Save to disc..., Export CSV, Open track list, and the tick box
     "Keep a track list on the disc").
     Each tab has a line saying what its buttons do. Tick tracks in the list first (the box in the heading of the track list ticks or unticks all of them):
@@ -26,8 +31,8 @@ The window
     track by its number to a new place (ticked tracks move together).
   * Lyrics (its own card, by default under Recording): the lyrics of the track that is playing, the current line lit in time with the music. It opens short (just a note) and grows while lyrics show.
   * Card sizes: drag a card's right edge to change its width (the other cards in its row give up or take the space), its bottom edge for its height (a minimum: a card never gets smaller than its contents) or its corner for both; double-click an edge to go back to automatic. In the default layout the bottoms of the columns line up. "Reset layout" restores everything to stock: places, sizes, hidden and folded cards and the first tab of each tabbed card.
-  * Card layout (header, between Theme and the recorder name): the Cards menu ticks the seven main cards (Disc Information, Recording, Lyrics, Disc
-    Management, Disc Extras, Recorder, Tracks) on or off; Show all and Reset layout are in it too. Each card can be dragged by the dotted
+  * Card layout (header, between Theme and the recorder name): the Cards menu ticks the eight main cards (Disc Information, Recording, Lyrics, Disc
+    Management, Disc Conversion, Disc Extras, Recorder, Tracks) on or off; Show all and Reset layout are in it too. Each card can be dragged by the dotted
     handle at the end of its title (the title itself still folds the card): drop on the left or right edge of another card for a new column
     beside it, on its top or bottom half to stack it above or below, or on the line between two rows (or above / below all of them) for a row
     of its own. Cards are sized by where they land: the cards in a row share its width (a card on a row of its own takes the full width) and
@@ -62,7 +67,8 @@ Groups (Hi-MD discs)
   the cover of a Yoto playlist and the album picture of Bandcamp / SoundCloud recordings (internet radio has no picture).
 - Playing groups: "Play group" plays a group and stays in it. The player bar has previous / next buttons and a play mode: Play on,
   Stay in group (tracks in no group count as one group per run) or Shuffle group (each track once, in random order). Not used when the
-  recorder itself plays a standard disc.
+  recorder itself plays a standard disc. The mode is not remembered: every start is "Play on". Any other mode lights up the dropdown in the
+  accent colour (its tooltip says which mode is on and how to switch it off), so shuffle can not stay on unnoticed.
 - Group display (disc picture): on a disc with groups the Disc Information line starts with the group count, the disc picture has a
   coloured band around it for each group (hover for its name, track count and time), and a legend lists each group with its track count
   and total time. Click a legend entry or a band to jump to the group and tick its tracks (click again to untick). Hovering a track's
@@ -84,7 +90,8 @@ Two kinds of disc
 What it does - both kinds of disc
 - Lists the connected recorders and shows the model, disc space and the track list.
 - Adds tracks: drag files onto the window, or press "Add tracks from PC...". A dry run (nothing written) shows what fits and what
-  will happen, then you confirm.
+  will happen, then you confirm. Every file in the list has a tick box: if they will not all fit, untick the ones to leave out (the
+  fit check and the "needs" line are worked out again from the ticked files), or press "Untick files from the end until the rest fit".
 - Deletes any track (tick the box, press Delete). A confirmation sheet comes first.
 - Moves a track to another position (Move...).
 - Renames track titles and the disc name (double-click).
@@ -217,7 +224,7 @@ Recording internet radio (Add tracks from Internet Radio...)
 Converting a standard disc to Hi-MD (Convert to Hi-MD...)
 - For a standard (SP / LP) disc in a recorder that also uses Hi-MD (MZ-NH700, MZ-RH1 and so on). When such a disc with audio is
   loaded, a note appears under the Recorder card saying the disc can be used as Hi-MD (nothing opens by itself; "Hide for this
-  disc" and "Never show" switch it off); the Convert group in Disc Management does the same at any time. Pre-recorded commercial
+  disc" hides it for that disc; the Settings button in the top bar switches it off); the Convert SP Disc to Hi-MD button in the Disc Conversion card does the same at any time. Pre-recorded commercial
   discs and write-protected discs are not offered.
 - Choose the format the tracks are written back in: Hi-SP (ATRAC3+ 256 kbps, the default), Hi-LP (64 kbps) or PCM (lossless). The
   sheet shows the size of each against about how much the disc holds as a Hi-MD disc (an 80-minute disc: roughly 300 MB). Hi-SP and
@@ -231,6 +238,28 @@ Converting a standard disc to Hi-MD (Convert to Hi-MD...)
   lengths, and only then is the PC copy deleted. If anything goes wrong the PC copy is kept and the program offers to write it again
   whenever an empty Hi-MD disc is loaded ("Write the saved tracks to this disc?"), also after closing the program.
 - This app cannot turn the Hi-MD disc back into a standard-format disc; the recorder's own menu can (it erases the disc).
+
+Converting LP2 / LP4 tracks to SP (Convert LP to SP..., "Convert LP2/4 Disc to SP")
+- Players without LP support (many from the 1990s) play an LP2 or LP4 track as silence. When a standard disc with LP tracks is loaded, a note
+  appears under the Recorder card (nothing opens by itself; "Hide for this disc" hides it, and the Settings button in the top bar switches
+  it off); the same Convert LP to SP button is in the Disc Conversion card (title: Convert LP2/4 Disc to SP). Pre-recorded and write-protected discs are not offered.
+- The window lists the LP tracks with tick boxes. SP takes 2 times (LP2) or 4 times (LP4) the room, so not every track of a full disc fits:
+  the ticks start on as many tracks as fit, in disc order, and a line shows how much SP time the disc has and what would be left.
+- Step 1: every ticked track is copied to this PC as FLAC (from the program's saved copy, straight from an MZ-RH1, or with the opt-in
+  experimental download on an MZ-NH700, which then needs the cable unplugged and plugged in again), and each copy is checked against the
+  disc's playing time. Nothing on the disc changes until all are safe. Step 2: each track, one at a time, a copy of the LP audio goes to
+  Saved copies, the SP version is written (next to the original, or, when the disc is too full, after the original was deleted), the disc's
+  track list is read back and checked, the SP track is put in the original's place and the LP original is removed. Titles, artists and
+  albums stay. If something fails after an original was deleted, its audio is kept in the rescue folder and in the PC copy. Tracks already
+  converted stay converted if a later one fails or you press Stop.
+- Spread over two discs: LP2 / LP4 holds twice or four times as much music as SP, so a well-filled LP disc does not fit back as SP. Tick
+  "Spread over two discs" (it starts ticked when nothing fits on one). The ticked tracks in disc order that fit stay on this disc and are
+  converted in place; the rest are copied to this PC, removed from this disc first (which also frees the room), and kept as SP-ready audio
+  until you insert a second standard disc. A note under the Recorder card (also after the program is closed and opened again) offers to
+  write them; they are added as SP after anything already on that disc and the PC copy is deleted once the disc's track list shows them
+  all. The second disc must have room for them (an 80-minute disc holds 80 minutes of SP); more than one disc's worth cannot be spread.
+- SP is made by the recorder from the decoded sound, so there is one more generation of small quality loss; it does not improve an LP track.
+- Not done on a disc with named track groups, on mono LP tracks, or on a write-protected disc.
 
 Cloning a disc (Clone disc...)
 - Works on a Hi-MD disc (to another Hi-MD disc) or a standard disc (to another standard disc); the sheet follows whichever disc is

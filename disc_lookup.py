@@ -619,7 +619,7 @@ class DiscLookupMixin:
         background, telling the page what is happening (the line under the disc name)."""
         tracks = list(self._tracks)
         key = self._netmd_disc_key(tracks) if tracks else None
-        if (not key or not getattr(self, '_netmd_commercial', False) or self._dl_busy
+        if (not key or not getattr(self, '_netmd_commercial', False) or self._dl_busy or not self._app_setting('autoLookupCommercial')
                 or not (any(not t.get('artist') for t in tracks) or cover_url(key) is None) or not self._dl_due(key)):
             return
         self._dl_busy = True

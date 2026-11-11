@@ -22,6 +22,7 @@ _APPDATA = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager
 COPIES_DIR = os.path.join(_APPDATA, 'copies')    # FLAC copies of the tracks this app adds to standard discs, so they can be played here
 CLONE_DIR = os.path.join(_APPDATA, 'clone')      # the PC copy of a disc being cloned (it can be a gigabyte); stays until the clone is written and checked
 CONVERT_DIR = os.path.join(_APPDATA, 'convert')  # the PC copy of a standard disc being converted to Hi-MD; stays until it is written back and checked
+LPSP_DIR = os.path.join(_APPDATA, 'lpsp')      # the PC copy of LP tracks being rewritten as SP; stays while tracks wait for a second disc
 SPLIT_DIR = os.path.join(_APPDATA, 'split')     # new tracks saved by a split that did not fit, until they are written
 ASR_DIR = os.path.join(_APPDATA, 'whisper')      # the optional speech recogniser (whisper.cpp + one model, ~200 MB) that writes timed lyrics from a track's audio
 RESCUE_DIR =os.path.join(_APPDATA, 'rescue')    # the cut parts of a standard-disc split whose original was deleted first and whose writing then failed (kept, never swept)

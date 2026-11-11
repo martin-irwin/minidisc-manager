@@ -94,7 +94,7 @@ function rawEncodeAtrac3Plus(runtimeDir, wavPath, frameBytes = 2048, onProgress 
 // ---------------------------------------------------------------------------------------------------------------------------
 const HEADROOM_TARGET = 0.985;
 const HEADROOM_PASSES = 2;
-const AT3P_OVERSHOOT = 1.045;           // ATRAC3+ output peak / input peak: 1.028 measured on a full-scale track, 17 tracks, Hi-SP, 2026-11-10 (LP2 / LP4 are not pre-lowered: not measured)
+const AT3P_OVERSHOOT = 1.19;           // ATRAC3+ output peak / input peak. It varies by track: 1.006 to 1.182 on 12 full-scale tracks of a decoded SP disc (Hi-SP, 2026-11-11; 1.028 on 17 CD tracks the day before), so 1.045 left 8 of 12 needing a second encode. 1.19 covers all of them; the check after the encode stays as the safety net. LP2 / LP4 are not pre-lowered: not measured
 
 // Loudest sample (1.0 = full scale) of `bytes` (a WAV or OMA file) decoded to 32-bit float by ffmpeg, so nothing is clipped.
 // onProgress(fraction), if given, with expectBytes (the decoded size to expect, as 32-bit float stereo): how much has been checked so far.
