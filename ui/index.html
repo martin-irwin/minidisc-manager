@@ -280,8 +280,28 @@
   /* The visualizer at the top of the Disc Information card while a track plays on this PC. */
   #viz { flex: 1 1 100%; min-width: 0; display: grid; gap: 7px; }
   #viz.hidden { display: none; }
+  .deck { --deck-ink: var(--accent); flex: 1 1 100%; min-width: 0; padding: 9px 12px 10px; border-radius: 12px; background: var(--screen); border: 1px solid var(--line); box-shadow: var(--screen-edge); font-variant-numeric: tabular-nums; }
+  .deck.hidden { display: none; }
+  .deck-head { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 6px; font-size: 12px; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; color: var(--deck-ink); text-shadow: 0 0 7px color-mix(in srgb, var(--deck-ink) 60%, transparent); }
+  .deck-head #dkMode { color: var(--muted); font-weight: 600; letter-spacing: .06em; }
+  .deck-now { display: flex; flex-direction: column; gap: 1px; min-width: 0; margin-bottom: 8px; }
+  .deck-now b { font-size: 17px; font-weight: 700; line-height: 1.25; color: var(--deck-ink); text-shadow: 0 0 9px color-mix(in srgb, var(--deck-ink) 55%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-now span { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .deck-now span:empty { display: none; }
+  .deck-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px 10px; }
+  .deck-grid > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .deck-grid i { font-style: normal; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+  .deck-grid b { font: 600 20px/1.15 ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var(--deck-ink); text-shadow: 0 0 9px color-mix(in srgb, var(--deck-ink) 55%, transparent); }
+  .deck-grid > div:nth-child(n+4) b { opacity: .72; }                    /* the disc row a little dimmer than the track row, like a deck's secondary readout */
+  .deck-grid b svg.dg { height: 22px; width: 12.8px; margin-right: 2px; vertical-align: middle; overflow: visible; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--deck-ink) 70%, transparent)); }
+  .deck-grid b svg.dg.col { width: 5.6px; }
+  .deck-grid b svg.dg .on { fill: var(--deck-ink); }
+  .deck-grid b svg.dg .off { fill: var(--deck-ink); opacity: .09; }
+  .deck-grid .na b { color: var(--muted); text-shadow: none; opacity: .6; }
   #vizCanvas.tall { height: 250px; }          /* the round VU dials get more room, so they come out larger */
-  #vizCanvas { width: 100%; height: 130px; display: block; border-radius: 12px; background: rgba(0, 0, 0, .30); border: 1px solid var(--line); }
+  /* the "screen" of the visualiser and of the deck time display under it: the same dark glass, so they read as one retro machine display */
+  :root { --screen: linear-gradient(180deg, rgba(0, 0, 0, .52), rgba(0, 0, 0, .34)); --screen-edge: inset 0 0 22px rgba(0, 0, 0, .6), inset 0 1px 0 rgba(255, 255, 255, .05); }
+  #vizCanvas { width: 100%; height: 130px; display: block; border-radius: 12px; background: var(--screen); border: 1px solid var(--line); box-shadow: var(--screen-edge); }
   .viz-tools { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12px; color: var(--muted); }
   .viz-tools label { display: inline-flex; align-items: center; gap: 6px; }
   .viz-tools select { padding: 3px 6px; font-size: 12px; }
@@ -483,7 +503,6 @@
       <section class="card disc-card" data-card="disc">
         <h2 class="card-title">Disc Information</h2>
         <div id="viz" class="hidden">
-          <canvas id="vizCanvas"></canvas>
           <div class="viz-tools">
             <label>Display <select id="vizStyle"></select></label>
             <span id="vizMore" style="display:contents">
@@ -491,6 +510,19 @@
               <label>Sensitivity <input type="range" id="vizGain" min="40" max="300" value="100" title="How strongly the display reacts"></label>
               <label><input type="checkbox" id="vizPeaks"> Peak marks</label>
             </span>
+          </div>
+          <canvas id="vizCanvas"></canvas>
+        </div>
+        <div id="deckTimes" class="deck hidden" aria-label="Track and disc times">
+          <div class="deck-head"><span id="dkTrack"></span><span id="dkMode"></span></div>
+          <div class="deck-now"><b id="dkTitle"></b><span id="dkArtist"></span></div>
+          <div class="deck-grid">
+            <div title="How long this track has played"><i>Elapsed</i><b id="dkEl">0:00</b></div>
+            <div title="How much of this track is left"><i>Remaining</i><b id="dkRem">-0:00</b></div>
+            <div title="The length of this track"><i>Track length</i><b id="dkLen">0:00</b></div>
+            <div title="How much of the disc has played, from track 1"><i>Disc elapsed</i><b id="dkDEl">0:00</b></div>
+            <div id="dkDRemBox"><i>Disc remaining</i><b id="dkDRem">-0:00</b></div>
+            <div title="The playing time of all the tracks on the disc"><i>Disc total</i><b id="dkDTot">0:00</b></div>
           </div>
         </div>
         <svg id="disc" viewBox="0 0 160 160" role="img" aria-label="Disc usage"></svg>
@@ -1073,7 +1105,7 @@ async function load(noSync) {
 const ASK_OFF_KEY = 'mdm.askMissingOff', ASK_DISCS_KEY = 'mdm.askMissingDiscs';
 const askedThisRun = new Set();
 // App settings (the Settings button): kept by the program in app-settings.json. appSettings is the page's copy; both are on until switched off.
-let appSettings = { autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true };
+let appSettings = { autoLookupCommercial: true, askMissing: true, askConvert: true, askLpToSp: true, autoAlign: false, fillArtist: true };
 async function appSettingsLoad() {
   try {
     let s = await api().get_app_settings();
@@ -1091,6 +1123,8 @@ function openSettings() {
   const rows = [
     ['autoLookupCommercial', 'Look up pre-recorded discs automatically', 'When a pre-recorded (commercial) standard disc is inserted, the program searches online (MusicBrainz, Discogs) for the artist, album and album art, then looks for lyrics. Only track names and lengths are sent. Switched off: use "Look up online" or "Search by hand" on the disc yourself.'],
     ['askLpToSp', 'Suggest converting LP tracks to SP', 'When a standard disc with LP2 / LP4 tracks is inserted, a note under the Recorder card says that players without LP support play them as silence and offers to rewrite them as SP. Switched off: no note; Convert LP2/4 Disc to SP stays in the Disc Conversion card.'],
+    ['autoAlign', 'Fine-tune lyric timing automatically when lyrics are found', 'After lyrics are found, a speech recogniser listens to the start of each track and sets the lyric timing to match (a minute or more per track, and it needs the free speech helper). Off: lyrics are only found; use “Fine-tune timing…” on a track when you want it.'],
+    ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
     ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
     ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
   ].map(([key, title, text]) => {
@@ -1365,6 +1399,7 @@ function markNow() {
   $('pp').textContent = isPlaying() ? '❚❚' : '▶';
   updatePlayerControls();
   nowCover();
+  deckTimes();
 }
 // While a track of a group with a picture plays, that picture takes the place of the disc picture in the Disc Information card.
 let nowCoverGroup = '';
@@ -1408,7 +1443,7 @@ function remoteNow() {
 function remoteDraw() {
   if (seeking) return;
   const t = trackMap.get(nowNum), s = remoteNow();
-  $('tcur').textContent = len(Math.floor(s));
+  $('tcur').textContent = len(Math.floor(s)); deckTimes();
   if (t && t.seconds) $('seek').value = Math.min(1000, Math.round(1000 * s / t.seconds));
 }
 function remoteApply(r) {
@@ -1532,7 +1567,55 @@ audio.addEventListener('playing', () => { clearTimeout(waitTimer); setStatus('')
 audio.addEventListener('waiting', () => { clearTimeout(waitTimer); waitTimer = setTimeout(() => { if (nowNum && !audio.paused && audio.readyState < 3) setStatus('Waiting for more of the track to be read…', true); }, 1200); });       // only a wait of more than a moment is announced
 audio.addEventListener('error', () => { if (!audio.getAttribute('src')) return; dbg('audio ERROR code=' + (audio.error && audio.error.code)); broken = true; setStatus('Could not play this track. Press play to try again.'); markNow(); });
 audio.addEventListener('loadedmetadata', () => { $('ttot').textContent = clock(audio.duration); });
+// A deck's time display (Sony MD decks: track number with elapsed time, remaining time of the track, total remaining time of the disc "only during normal
+// play", and the disc's total playing time). Shown under the visualiser while a track plays here, or on the recorder / a speaker / a TV.
+// Retro seven-segment digits for the deck time display, drawn as small SVGs (no font needed). Unlit segments stay faintly visible, like a real LCD / VFD.
+// Set DECK_SEG to false to go back to plain digits.
+const DECK_SEG = true;
+const SEG_ON = { 0: 'abcdef', 1: 'bc', 2: 'abdeg', 3: 'abcdg', 4: 'bcfg', 5: 'acdfg', 6: 'acdefg', 7: 'abc', 8: 'abcdefg', 9: 'abcdfg', '-': 'g' };
+const SEG_P = { a: '2,1 12,1 10,3.6 4,3.6', b: '13,1.8 13,11.4 10.6,10.2 10.6,4.2', c: '13,12.6 13,22.2 10.6,19.8 10.6,13.8', d: '2,23 12,23 10,20.4 4,20.4',
+                e: '1,12.6 3.4,13.8 3.4,19.8 1,22.2', f: '1,1.8 3.4,4.2 3.4,10.2 1,11.4', g: '2.2,12 4.2,9.7 9.8,9.7 11.8,12 9.8,14.3 4.2,14.3' };
+function segHtml(str) {
+  let out = '';
+  for (const ch of String(str)) {
+    if (ch === ':') { out += '<svg class="dg col" viewBox="0 0 6 24"><circle class="on" cx="3" cy="8" r="1.7"/><circle class="on" cx="3" cy="16.4" r="1.7"/></svg>'; continue; }
+    const lit = SEG_ON[ch];
+    if (lit === undefined) { out += '<svg class="dg" viewBox="0 0 14 24"></svg>'; continue; }
+    out += '<svg class="dg" viewBox="0 0 14 24">' + Object.keys(SEG_P).map(k => '<polygon class="' + (lit.includes(k) ? 'on' : 'off') + '" points="' + SEG_P[k] + '"/>').join('') + '</svg>';
+  }
+  return out;
+}
+function deckSet(id, text) {                                             // only redraws when the text changed (the clock ticks several times a second)
+  const e = $(id); if (e.dataset.v === text) return;
+  e.dataset.v = text; e.setAttribute('aria-label', text);
+  if (DECK_SEG) e.innerHTML = segHtml(text); else e.textContent = text;
+}
+const DECK_INK = { oled: '#3fa2ff', fire: '#ff9a3d', ice: '#7ad7ff', classic: '#4cdf6a', white: '#f2f2f2' };           // the visualiser's colour choice colours the digits (Accent / Rainbow: the theme's accent)
+function deckTimes() {
+  const box = $('deckTimes'), t = nowNum && trackMap.get(nowNum);
+  box.classList.toggle('hidden', !t);
+  if (!t) return;
+  box.style.setProperty('--deck-ink', DECK_INK[vizSet.color] || 'var(--accent)');
+  const cur = Math.max(0, playingRemote ? remoteNow() : audio.currentTime || 0), trackLen = t.seconds || (isFinite(audio.duration) ? audio.duration : 0);
+  const all = [...trackMap.values()].sort((a, b) => a.number - b.number);
+  const discTotal = all.reduce((n, x) => n + (x.seconds || 0), 0), before = all.filter(x => x.number < t.number).reduce((n, x) => n + (x.seconds || 0), 0);
+  const m = x => len(Math.max(0, Math.floor(x)));
+  $('dkTrack').textContent = 'Track ' + String(all.findIndex(x => x.number === t.number) + 1).padStart(2, '0') + ' / ' + String(all.length).padStart(2, '0');
+  const title = t.title === '(untitled)' ? 'Untitled' : t.title, who = [t.artist, t.album].filter(Boolean).join(' · ');          // the artist (and album) when the disc or this PC knows them
+  $('dkTitle').textContent = title; $('dkTitle').title = title; $('dkArtist').textContent = who; $('dkArtist').title = who;
+  $('dkMode').textContent = playMode === 'shuffle' ? 'Shuffle' : playMode === 'group' ? 'Stay in group' : '';
+  deckSet('dkEl', m(cur));
+  deckSet('dkRem', '-' + m(trackLen - cur));
+  deckSet('dkLen', m(trackLen));
+  deckSet('dkDEl', m(before + cur));
+  deckSet('dkDTot', m(discTotal));
+  const normal = playMode === 'disc';                                    // like a deck, the disc's remaining time only means something when the disc plays through in order
+  deckSet('dkDRem', normal ? '-' + m(discTotal - before - cur) : '--:--');
+  $('dkDRemBox').classList.toggle('na', !normal);
+  $('dkDRemBox').title = normal ? 'How much of the disc is left, from here to the last track' : 'Only shown in “Play on” mode, when the disc plays through in order';
+}
 audio.addEventListener('timeupdate', () => {
+  deckTimes();
   $('tcur').textContent = clock(audio.currentTime);
   if (!seeking && isFinite(audio.duration) && audio.duration > 0) $('seek').value = Math.round(1000 * audio.currentTime / audio.duration);
 });
@@ -1549,7 +1632,7 @@ function showPlayMode() {
   const sel = $('playMode'); sel.classList.toggle('mode-on', playMode !== 'disc');
   sel.title = playMode === 'disc' ? sel.dataset.base : (playMode === 'shuffle' ? 'SHUFFLE IS ON: the group’s tracks play in random order. Choose “Play on” to play the disc in order. ' : 'STAY IN GROUP is on: playback stops at the end of the track’s group. Choose “Play on” to carry on through the whole disc. ') + '(Resets to Play on when the program starts.)';
 }
-function setPlayMode(m) { playMode = m; $('playMode').value = m; shuffleDone = new Set(); playHist = []; showPlayMode(); }
+function setPlayMode(m) { playMode = m; $('playMode').value = m; shuffleDone = new Set(); playHist = []; showPlayMode(); deckTimes(); }
 $('playMode').dataset.base = $('playMode').title; showPlayMode();
 $('playMode').addEventListener('change', () => setPlayMode($('playMode').value));
 function scopeOf(num) {                                          // the playable tracks of the group that track `num` is in
@@ -1844,9 +1927,11 @@ function drawDisc(d) {
   const sz = n => d.netmd ? len(Math.round(n / d.perSecond)) + ' SP' : mb(n);
   svg.append(mk('circle', { cx: 80, cy: 80, r: R, fill: 'none', stroke: 'var(--chip)', 'stroke-width': 17 }));
   const usedBlocks = (d.total - d.free) / d.blockSize;
+  // A standard disc counts a track's length as SP time, but LP2 takes half the room of the same time in SP, LP4 a quarter (and mono SP half): the arcs show the room a track really takes.
+  const room = t => !d.netmd ? t.blocks : t.blocks / (String(t.codec).startsWith('LP4') ? 4 : String(t.codec).startsWith('LP2') ? 2 : t.codec === 'SP mono' ? 2 : 1);
   const parts = d.tracks.map((t, i) => ({
-    label: 'Track ' + t.number + ' · ' + (t.title === '(untitled)' ? 'untitled' : t.title) + ' · ' + len(t.seconds) + ' · ' + (t.codec || '?') + (t.kbps ? ' ' + t.kbps + ' kbps' : '') + ' · ' + sz(t.blocks * d.blockSize),
-    blocks: t.blocks, color: SEG_COLORS[i % SEG_COLORS.length], num: t.number,
+    label: 'Track ' + t.number + ' · ' + (t.title === '(untitled)' ? 'untitled' : t.title) + ' · ' + len(t.seconds) + ' · ' + (t.codec || '?') + (t.kbps ? ' ' + t.kbps + ' kbps' : '') + ' · ' + sz(room(t) * d.blockSize),
+    blocks: room(t), color: SEG_COLORS[i % SEG_COLORS.length], num: t.number,
   }));
   // Groups (Hi-MD): a track takes its group's colour (alternate tracks a little paler), and a thin band outside the tracks marks each group.
   const gOrder = [...new Set(d.tracks.filter(t => t.groupIndex).map(t => t.groupIndex))];
@@ -6407,7 +6492,7 @@ function vizSave() {
   else if (wasRh1 && !nowRh1 && $('vizColor').value === 'oled') $('vizColor').value = 'accent';
   vizSet.style = $('vizStyle').value; vizSet.color = $('vizColor').value; vizSet.gain = Number($('vizGain').value) / 100; vizSet.peaks = $('vizPeaks').checked;
   localStorage.setItem('vizStyle', vizSet.style); localStorage.setItem('vizColor', vizSet.color); localStorage.setItem('vizGain', vizSet.gain); localStorage.setItem('vizPeaks', vizSet.peaks ? '1' : '0');
-  viz.clear = true; vizSync();
+  viz.clear = true; vizSync(); deckTimes();
   vizCastApply();
 }
 // A change made while a TV is playing the lyric video: after a short wait (so dragging the slider is one change) the app has the video remade from
@@ -7006,11 +7091,11 @@ async function lyrFindAllRun(nums, silent, auto) {
     }
     tally.textContent = 'Found ' + m.found + '  ·  No match ' + m.missed + (m.skipped ? '  ·  Skipped (busy) ' + m.skipped : '');
   };
-  const r = await api().lyrics_find_all(nums);
+  const r = await api().lyrics_find_all(nums, current);
   window.onLyricsProgress = null; prog.stop();
-  if (r.discChanged) await load(true); else lyrApply(r);                    // the disc lookup filled in artists / album / art: redraw the disc
-  if (r.discChanged) lyrApply(r);
-  const text = (r.discInfo ? r.discInfo + ' ' : '') + (r.failed ? r.failed + ' ' : '') + (r.found.length ? 'Found lyrics for ' + r.found.length + ' track' + (r.found.length === 1 ? '' : 's') + '. ' : 'Nothing was found with a confident match. ') +
+  if (r.discChanged || (r.artistsFilled || []).length) await load(true); else lyrApply(r);                    // the disc lookup filled in artists / album / art: redraw the disc
+  if (r.discChanged || (r.artistsFilled || []).length) lyrApply(r);
+  const text = (r.discInfo ? r.discInfo + ' ' : '') + ((r.artistsFilled || []).length ? 'Artist filled in for ' + r.artistsFilled.length + ' track' + (r.artistsFilled.length === 1 ? '' : 's') + ' from the lyrics match. ' : '') + (r.failed ? r.failed + ' ' : '') + (r.found.length ? 'Found lyrics for ' + r.found.length + ' track' + (r.found.length === 1 ? '' : 's') + '. ' : 'Nothing was found with a confident match. ') +
     (r.missed.length ? 'No confident match for ' + r.missed.map(n => '#' + n).join(', ') + ': use Find… on those to choose by hand, use Listen… to make them from the audio, or load a file.' : '');
   if (silent) toast(r.found.length ? 'Lyrics found for ' + r.found.length + ' of ' + nums.length + ' tracks' : 'No lyrics found with a confident match', false, 5000);
   else if (auto) {                                                              // the automatic search for a pre-recorded disc: close the window, say what happened under the disc name
@@ -7119,7 +7204,8 @@ async function lyrListen(nums) {
 // the lines come early or late. The speech recogniser (the same optional helper as Listen…) listens to the first 100 seconds of the track,
 // finds when its timed lines are really sung and sets the track's timing offset to match. No lyrics are changed, only the offset, and a track whose
 // lyrics do not fit the singing (another version of the song) is left alone and reported.
-const autoAlignOn = () => { try { return localStorage.getItem('mdm.autoAlign') === '1'; } catch (e) { return false; } };      // off unless the user ticks it on the Fine-tune sheet (it takes a minute or more per track)
+const autoAlignOn = () => appSettings.autoAlign === true;      // Settings > "Fine-tune lyric timing automatically": OFF unless switched on (it takes a minute or more per track)
+try { localStorage.removeItem('mdm.autoAlign'); } catch (e) { /* nothing was kept */ }       // the old hidden per-window value must not switch it on again
 async function lyrAlign(nums, opts) {
   opts = opts || {};
   if (!curDisc) { toast('Load a disc first.', true); return; }
@@ -7156,7 +7242,7 @@ async function lyrAlign(nums, opts) {
   if (opts.auto && st.ready) { await run(langV); return; }                          // right after "Find lyrics": no questions, the helper is already here
   const lang = el('select', {}, ...[['auto', 'Detect it'], ['en', 'English'], ['es', 'Spanish'], ['fr', 'French'], ['de', 'German'], ['it', 'Italian'], ['pt', 'Portuguese'], ['nl', 'Dutch'], ['ja', 'Japanese']].map(([v, n]) => el('option', { value: v, textContent: n })));
   lang.value = langV;
-  const auto = el('input', { type: 'checkbox', checked: autoAlignOn(), onchange: () => { try { localStorage.setItem('mdm.autoAlign', auto.checked ? '1' : '0'); } catch (e) { /* not kept */ } } });
+  const auto = el('input', { type: 'checkbox', checked: autoAlignOn(), onchange: async () => { const want = auto.checked; if (!(await appSettingSet('autoAlign', want))) auto.checked = !want; } });
   const total = nums.reduce((s, n) => s + (trackMap.get(n).seconds || 0), 0);
   const body = [el('div', { className: 'sub', textContent: 'Timed lyrics are timed for one particular recording of the song. Your file may start a little later, or be another version, so the lines come early or late. ' +
       'A speech recogniser listens to the first 100 seconds of ' + (nums.length === 1 ? 'this track' : 'each of these ' + nums.length + ' tracks') + ', finds when its lines are really sung and sets the timing to match. ' +

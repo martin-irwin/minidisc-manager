@@ -57,7 +57,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.27.2'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.27.3'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -562,7 +562,7 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
 
 # Everything that changes a disc, rips, records, clones or saves needs a valid license or a running trial (paid edition only). Looking at a
 # disc and playing it stay free. The page shows the license sheet when it sees `licenseRequired` in an answer.
-GATED = ('upload', 'bc_open', 'radio_start', 'bc_add', 'cd_rip_add', 'yoto_rip_add', 'yoto_send', 'edit_run', 'clone_read', 'clone_write', 'delete_tracks', 'rename_track', 'move_track',
+GATED = ('upload', 'bc_open', 'radio_start', 'bc_add', 'cd_rip_add', 'yoto_rip_add', 'yoto_send', 'edit_run', 'clone_read', 'clone_write', 'delete_tracks', 'rename_track', 'rename_tracks_each', 'move_track',
          'rename_group', 'make_group', 'make_groups', 'release_group', 'add_to_group', 'rename_disc', 'undo', 'set_clock', 'cover_set', 'cover_remove', 'label_save_disc', 'label_remove', 'format_disc', 'convert_read', 'convert_write', 'lpsp_read', 'lpsp_run', 'lpsp_spill_write', 'save_tracks','cd_burn_run', 'cd_burn_erase', 'cd_data_run', 'lyrics_save_disc', 'groupart_save_disc')
 
 

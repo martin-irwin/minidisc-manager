@@ -12,6 +12,8 @@ DEFAULTS = {
     'autoLookupCommercial': True,        # a pre-recorded (commercial) standard disc is looked up online by itself when it is inserted
     'askConvert': True,                  # a standard disc with audio in a Hi-MD-capable recorder shows the "can be converted to Hi-MD" note under the Recorder card
     'askLpToSp': True,                   # a standard disc with LP2 / LP4 tracks shows the "convert to SP" note under the Recorder card
+    'autoAlign': False,                  # after lyrics are found, fine-tune their timing by listening to each track (slow; OFF unless switched on)
+    'fillArtist': True,                  # a track whose lyrics were found and matched, and that has no artist, takes the artist the lyrics record names
     'askMissing': True,                  # a disc with details missing (artist, album, picture, lyrics) shows the "missing some details" prompt
 }
 

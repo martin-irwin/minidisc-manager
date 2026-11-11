@@ -405,9 +405,10 @@ class LyricsMixin:
             time.sleep(0.6)
         return {'ok': True, 'hint': self._ly_hint(votes, matched), 'matched': matched}
 
-    def lyrics_find_all(self, numbers):
+    def lyrics_find_all(self, numbers, index=None):
         """Looks up each listed track and keeps the result when it is a confident match. Returns what was found and what was not."""
         found, missed, skipped, failed = [], [], [], None
+        fills = {}                                                                  # track number -> the artist the matched lyrics name, for tracks that have none
         votes = {'artist': {}, 'album': {}}                                         # who the matched lyrics say the songs are by, and from which album
         todo = [n for n in (numbers or []) if self._ly_track(n)]
         def tell(i, t, stage):                                                      # live progress for the page: which track, and what happened to it
@@ -457,6 +458,8 @@ class LyricsMixin:
             if best:
                 self._ly_put(t, best['syncedText'] or best['text'], {'lr': 'lrclib', 'ne': 'netease', 'ov': 'lyrics.ovh'}.get(best['source'], best['source']), synced=bool(best['syncedText']))
                 found.append(t['number'])
+                if (best.get('artist') or '').strip() and not (t.get('artist') or '').strip():
+                    fills[t['number']] = best['artist'].strip()
                 for k in ('artist', 'album'):
                     v = (best.get(k) or '').strip()
                     if v:
@@ -472,7 +475,26 @@ class LyricsMixin:
         if disc and disc.get('found'):
             info = 'Disc found online: %s%s (%d of %d tracks matched).' % (disc.get('artist') or '', ' – ' + disc['album'] if disc.get('album') else '', disc['matched'], disc['total'])
         hint = self._ly_hint(votes, len(found))                                     # what the lyrics services agree on: used to look the disc up again by artist / album
-        return dict(self.lyrics_status(), found=found, missed=missed, failed=failed, discInfo=info, discChanged=bool(disc and disc.get('changed')), hint=hint)
+        filled = self._ly_fill_artists(index, fills) if (fills and index is not None and self._app_setting('fillArtist')) else []
+        return dict(self.lyrics_status(), found=found, missed=missed, failed=failed, discInfo=info, discChanged=bool(disc and disc.get('changed')), hint=hint, artistsFilled=filled)
+
+    def _ly_fill_artists(self, index, fills):
+        """A track whose lyrics were found and confidently matched, and that has no artist, gets the artist the lyrics record names. Each track takes its own
+        match (a compilation keeps its different artists). A standard disc keeps the artist on this PC only; a Hi-MD disc is written in one change (one Undo).
+        Returns the numbers filled in."""
+        try:
+            index = int(index)
+            by = {t['number']: t for t in self._tracks}
+            if self._is_netmd(index):
+                res = self.set_netmd_details(index, [{'number': n, 'artist': a} for n, a in fills.items() if n in by])
+                return sorted(n for n in fills if n in by) if 'error' not in res else []
+            items = [{'number': n, 'title': by[n]['title'], 'artist': a} for n, a in fills.items() if n in by and by[n]['title'] != '(untitled)' and not by[n].get('artist')]
+            if not items:
+                return []
+            res = self.rename_tracks_each(index, items)
+            return sorted(it['number'] for it in items) if 'error' not in res else []
+        except Exception:
+            return []
 
     # -- keeping them on the disc ------------------------------------------------------------------
     def lyrics_save_disc(self, index):

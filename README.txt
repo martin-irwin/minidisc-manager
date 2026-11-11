@@ -526,6 +526,9 @@ Lyrics (its own group, Lyrics)
   (text only, no timing). It lets you pick the right match (each result shows its source, length and first lines). "Find lyrics for the ... without" does
   every track that has none and keeps only confident matches (same title and artist, ignoring "The" and "feat. ...", also a name cut short on the disc,
   with a length within 10 seconds); it says which it could not match. A later service is only asked when the earlier ones had no confident timed match.
+  When a track with no artist gets a confident match, the artist the lyrics record names is filled in for that track (each track from its own match, so a
+  compilation keeps its different artists): a Hi-MD disc stores it on the disc in one change (Undo takes it back), a standard disc keeps it on this PC.
+  The Settings button has a switch for this ("Fill in a missing artist from the lyrics match"); the result line says how many tracks were filled in.
   "File..." uses an .lrc file (timed lyrics) or a plain .txt file from your PC. Only the artist, title, album and length of a track are sent to the lyrics
   services, never the audio, and only when you press a button.
 - "Listen..." is for a track no service knows: an optional speech recogniser (whisper.cpp with a 190 MB model) listens to the track on this PC and writes
@@ -539,7 +542,7 @@ Lyrics (its own group, Lyrics)
   of each track (twice, with different settings), finds when the timed lines are really sung and sets the track's timing offset to match. The lyrics are not
   changed, only the offset (the player's nudge still works). A track is only changed when both listens agree, so a shift smaller than about half a second,
   which the recogniser cannot measure reliably, is left alone, and so is a track whose lyrics do not fit the singing (another version of the song); the
-  sheet says which. It is off after "Find lyrics" by default because it takes a minute or more per track; run it when a track's lines are early or late, or tick "Do this automatically after Find lyrics" on the Fine-tune sheet to have it run by itself.
+  sheet says which. It is off after "Find lyrics" by default because it takes a minute or more per track; run it when a track's lines are early or late, or switch on "Fine-tune lyric timing automatically when lyrics are found" in Settings (top bar; the Fine-tune sheet has the same switch). It is off unless you switch it on to have it run by itself.
   It needs the same one-time download as Listen..., takes about a minute or more per track, and the audio never leaves this PC.- Tracks that have lyrics show a mark after their title: a coloured note (♪) for timed lyrics, which follow the music while the track plays, and a grey three-line mark (≡) for text-only lyrics, which show as plain scrolling text. While such a track plays here, its lines appear in a box in the Recording panel, the current line
   in large type; the note button in the player bar hides and shows the box. Lyrics without timing show as scrolling text.
 - On a Hi-MD disc, "Save lyrics to the disc" writes ONE small file, LYRICS.TXT, to the disc's root folder (next to TRACKS.CSV and COVER.JPG), after backing
@@ -582,6 +585,13 @@ Visualizer (top of the Disc Information panel, while a track plays on this PC)
   bars), or Off. Colour (Accent, Rainbow, Fire, Ice, Green - red, White), Sensitivity and Peak marks can be changed while it plays; the choices are kept.
 - The sound is only read, never changed (apart from the equalizer, below: the display shows the sound after it). It is not shown for a standard disc
   played on the recorder itself or on a Sonos speaker, because the program does not receive that sound.
+
+Deck time display (just under the visualiser, while any track plays: here, on the recorder, a speaker or a TV)
+- Modelled on a Sony MiniDisc deck's display: "Track 05 / 22", the title of the playing track with its artist and album underneath (when the disc,
+  or this PC for a standard disc, knows them), and six readouts. Elapsed (how long this track has played), Remaining (how much of
+  it is left, with a minus sign) and Track length; Disc elapsed (from track 1), Disc remaining (to the last track) and Disc total (the playing
+  time of all the tracks). A deck shows the disc's remaining time "only during normal play", so Disc remaining reads --:-- while the play mode
+  is Stay in group or Shuffle group (the mode is named at the top right of the display).
 
 Equalizer (the EQ button in the player bar, while a track plays on this PC)
 - Opens in a small window of its own that you can drag around; the music keeps playing and the rest of the program stays usable. Close it with the
