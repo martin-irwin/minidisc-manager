@@ -1,6 +1,5 @@
 """Naming tracks by listening (AcoustID / Chromaprint): the key handling, the short "what was read" previews, and Api.identify_tracks.
-IdentifyMixin is mixed into himd_app.Api, which supplies ACOUSTID_BUILTIN_KEY (the Full edition's key; installer/make_restricted.py patches it
-in himd_app.py) and the disc / helper methods used below. Reads the disc; never writes to it."""
+IdentifyMixin is mixed into himd_app.Api, which supplies ACOUSTID_BUILTIN_KEY (the built-in key) and the disc / helper methods used below. Reads the disc; never writes to it."""
 import os
 import re
 import secrets
@@ -15,8 +14,8 @@ from mdm_paths import COPIES_DIR, HERE, NETMD_HELPER, USER_DIR
 
 class IdentifyMixin:
     # AcoustID: names a track by listening to it (a Chromaprint fingerprint of its first two minutes is looked up online). It needs a free
-    # application key from acoustid.org: the Full edition has one built in (acoustid_full.py), a key the user pastes in is kept in ACOUSTID_KEY_FILE
-    # and wins over it, and the Restricted edition has none until the user enters theirs.
+    # application key from acoustid.org: the program has one built in (acoustid_full.py); a key the user pastes in is kept in ACOUSTID_KEY_FILE
+    # and wins over it.
     ACOUSTID_KEY_FILE = os.path.join(USER_DIR, 'acoustid-key.txt')
 
     def _acoustid_key(self):

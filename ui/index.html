@@ -301,7 +301,6 @@
   .deck-grid > div { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .deck-grid i { font-style: normal; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
   .deck-grid b { font: 600 20px/1.15 ui-monospace, 'Cascadia Mono', Consolas, monospace; color: var(--deck-ink); text-shadow: 0 0 9px color-mix(in srgb, var(--deck-ink) 55%, transparent); }
-  .deck-grid > div:nth-child(n+4) b { opacity: .72; }                    /* the disc row a little dimmer than the track row, like a deck's secondary readout */
   .deck-grid b svg.dg { height: 22px; width: 12.8px; margin-right: 2px; vertical-align: middle; overflow: visible; filter: drop-shadow(0 0 3px color-mix(in srgb, var(--deck-ink) 70%, transparent)); }
   .deck-grid b svg.dg.col { width: 5.6px; }
   .deck-grid b svg.dg .on { fill: var(--deck-ink); }
@@ -694,16 +693,22 @@
           <div class="tool-buttons"><button id="chk" title="A quick report on this disc: missing titles, artists, albums, lyrics, duplicates and free space">Check this disc…</button></div>
           <div class="tool-text">A quick report: missing titles, artists and albums, duplicates, lyrics and free space. <a href="#" class="help-link" data-help="check">ⓘ How it works…</a></div>
         </div>
+<div class="tool-group g-tracks">
+          <div class="eyebrow">Tracks</div>
+          <div class="tool-buttons">
+            <button id="export" title="Save the track list as a spreadsheet (CSV) file on your PC">Export CSV</button>
+            <button id="openList" disabled title="Open the TRACKS.CSV stored on the disc in your spreadsheet program">Open track list</button>
+          </div>
+          <label id="keepRow" class="tool-text" style="display:flex;gap:7px;align-items:center;cursor:pointer" title="Hi-MD discs only: a spreadsheet file, TRACKS.CSV, is stored on the disc and brought up to date whenever the tracks change"><input type="checkbox" id="keepList"> Keep a track list on the disc</label>
+          <div class="tool-text">Save the track list as a spreadsheet, or keep one on a Hi-MD disc and open it. <a href="#" class="help-link" data-help="tracklist">ⓘ How it works…</a></div>
+        </div>
 <div class="tool-group g-copyout">
           <div class="eyebrow">Copy out</div>
           <div class="tool-buttons">
             <button id="save" title="Copy the ticked tracks (or every track, if none are ticked) to your PC">Save to PC…</button>
             <button id="burnCd" title="Burn the ticked tracks (or every track, if none are ticked) to an audio CD in a disc writer on this PC">Burn Audio CD…</button>
             <button id="saveDisc" title="Put the ticked tracks (or every track, if none are ticked) as files on a CD, DVD, DVD-RAM or Blu-ray disc in a disc writer on this PC">Save to disc…</button>
-            <button id="export">Export CSV</button>
-            <button id="openList" disabled title="Open the TRACKS.CSV stored on the disc in your spreadsheet program">Open track list</button>
           </div>
-          <label id="keepRow" class="tool-text" style="display:flex;gap:7px;align-items:center;cursor:pointer" title="Hi-MD discs only: a spreadsheet file, TRACKS.CSV, is stored on the disc and brought up to date whenever the tracks change"><input type="checkbox" id="keepList"> Keep a track list on the disc</label>
           <div class="tool-text">Copy tracks to your PC, burn an audio CD, or save them to a disc. <a href="#" class="help-link" data-help="copyout">ⓘ How it works…</a></div>
         </div>
           </div>
@@ -1423,6 +1428,7 @@ function nowCover() {
   const t = nowNum ? trackMap.get(nowNum) : null, title = t && t.groupTitle || '', art = title ? gaArt(title) : '';
   if (art) {
     nowCoverGroup = title; $('coverBox').classList.remove('hidden'); $('coverImg').classList.remove('hidden'); $('coverImg').src = art;
+    ['coverAdd', 'coverFind', 'coverSearch', 'coverLookup', 'coverActions'].forEach(id => $(id).classList.add('hidden'));   // the disc-picture buttons (the dashed "+ Disc image" square too) would sit under the group picture as a second placeholder; showCover brings them back when play stops
     $('coverImg').title = 'The picture of the group “' + title + '”, shown while its tracks play. Click to change it.';
   } else if (nowCoverGroup) { nowCoverGroup = ''; showCover(curDisc.cover, true, null); }
 }
@@ -2770,8 +2776,7 @@ const helpText = () => ({
       '• Under each track you can pick another possibility, edit any name, or untick a track. Nothing is written until you press “Apply names”, and “Undo last change” can put the old names back.',
     ]],
     ['Listen to the tracks: AcoustID key and results', [
-      '• The Full edition has an AcoustID key built in, so it works straight away.',
-      '• The Restricted edition asks for your own free key the first time, entered once: register the program at acoustid.org/new-application and paste the key it gives you.',
+      '• The program has an AcoustID key built in, so it works straight away.',
       '• Recognition works well on tracks from a digital source. Recordings from vinyl or tape are sometimes not recognised, because surface noise and different masterings change the fingerprint. Then try Search for album or Paste a track list, which match by track length instead.',
     ]],
     ['Listen to the tracks: standard (SP / LP) discs', [
@@ -2994,8 +2999,11 @@ const helpText = () => ({
       '• Or, for a DVD-RAM, use a disc that is already formatted; the files go into a folder named after the disc name you type.',
       '• A rewritable disc that is not blank can be erased first.',
     ]],
-    ['Export CSV', 'Saves the track list as a spreadsheet.'],
-    ['Keep a track list on the disc / Open track list', 'On Hi-MD discs, the list is also stored on the disc as TRACKS.CSV and updated whenever tracks are added, deleted, renamed or moved. Open track list opens that file from the disc.'],
+  ]],
+  tracklist: ['Tracks', [
+    ['Export CSV', 'Saves the disc’s track list as a spreadsheet (CSV) file, in a place you choose on this PC. Nothing is written to the disc or the recorder.'],
+    ['Keep a track list on the disc', 'Hi-MD discs only. When ticked, the list is also stored on the disc as TRACKS.CSV and brought up to date whenever tracks are added, deleted, renamed or moved. A standard MiniDisc has no room for files, so this is not offered there.'],
+    ['Open track list', 'Opens the TRACKS.CSV stored on the disc in your spreadsheet program. It is read from the disc into a temporary copy, so editing it does not change the disc. The button is switched off until the disc has a track list.'],
   ]],
   label: ['Disc labelling', [
     ['Make disc label', 'Draws a sticker label for the loaded disc and saves it as a picture. Press “Make disc label…”: the label appears as a preview, made from the disc’s picture, the album name, the artist and the track list. The album and artist boxes start with what the app finds on the disc (the most common album and artist among the tracks, or the disc name written as “Artist - Album”); change them as you like and the preview follows. Tick boxes choose what goes on the label: the album art, the disc title and artist, the track list and, within it, each track’s length (shown at the right as minutes:seconds). Untick any of them to leave it off. Nothing is written to the disc or the recorder.'],
@@ -3124,7 +3132,7 @@ $('chk').addEventListener('click', () => {
   if (!netmd) {
     if (d.lyricsStale) add('warn', 'Lyrics on this PC are newer than the copy on the disc: use Lyrics… > Save lyrics to the disc.');
     if (!d.cover) add('info', 'No disc picture is stored (use “+ Disc image” or “Find online…”).'); else add('ok', 'The disc has a picture.');
-    if (!d.hasTracklist) add('info', 'No track list (TRACKS.CSV) is kept on the disc. Tick “Keep a track list on the disc” in Copy out.'); else add('ok', 'A track list is kept on the disc.');
+    if (!d.hasTracklist) add('info', 'No track list (TRACKS.CSV) is kept on the disc. Tick “Keep a track list on the disc” in Disc Extras, Tracks.'); else add('ok', 'A track list is kept on the disc.');
   }
   const pct = d.total ? Math.round(100 * d.free / d.total) : 0;
   add(pct < 5 ? 'warn' : 'ok', 'Space: ' + pct + '% of the disc is free' + (pct < 5 ? ' (nearly full).' : '.'));
@@ -4486,7 +4494,14 @@ async function runConvert(codec, exploit) {
   window.onFormatProgress = t => prog.set('Stage 2 of 3: ' + t, 0, 0.45);
   const f = await api().format_disc(current, 'himd', 'FORMAT');
   window.onFormatProgress = null; prog.stop();
-  if (f.error) { convEnd(); errorSheet(f.unfinished ? 'Setting up the Hi-MD disc is not finished' : 'The disc could not be formatted', f.error, { kept: 'Your ' + r.tracks + ' tracks are safe on this PC. When the disc is an empty Hi-MD disc, the program offers to write them.', onClose: () => scan() }); return; }
+  if (f.error) {
+    convEnd();
+    if (/reject/i.test(String(f.error))) {                                                // the NH700 often refuses the first erase-and-switch: a replug and the Format button get it going
+      errorSheet('The recorder needs a restart', f.error, { kept: 'Your ' + r.tracks + ' tracks are safe on this PC. Unplug the recorder’s USB cable, plug it back in and wait about ten seconds. Then press rescan, choose Format (in Disc Management) and set the disc up as Hi-MD. When it is an empty Hi-MD disc, the program offers to write your saved tracks.', onClose: () => scan() });
+      return;
+    }
+    errorSheet(f.unfinished ? 'Setting up the Hi-MD disc is not finished' : 'The disc could not be formatted', f.error, { kept: 'Your ' + r.tracks + ' tracks are safe on this PC. When the disc is an empty Hi-MD disc, the program offers to write them.', onClose: () => scan() }); return;
+  }
   await scan();                                                                         // the recorder came back as a Hi-MD device
   prog = convProg(false);
   await convertWrite(codec, prog, r.tracks, 0.5);
@@ -5978,7 +5993,7 @@ function makeTabs(cardId, classes, remember, names) {                 // names: 
 }
 makeTabs('recordCard', ['g-add', 'g-label'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc labelling' });
 makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove', 'g-format'], 'mdm.tab.mgmt');
-makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-check', 'g-copyout'], 'mdm.tab.extras');
+makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-check', 'g-tracks', 'g-copyout'], 'mdm.tab.extras');
 
 // ---- Collapsible cards: click a card title to fold the card down to just its title (remembered per card) ------------------
 document.querySelectorAll('section.card').forEach((card, i) => {

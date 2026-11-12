@@ -57,7 +57,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.27.4'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.27.5'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -125,8 +125,7 @@ def _fmt_clock(result):
     return {'state': 'set', 'text': when.strftime('%d %b %Y, %H:%M:%S')}
 
 
-# The AcoustID key built into the Full edition. acoustid_full.py exists only there; installer\make_restricted.py leaves it out and replaces these
-# lines, so the Restricted edition asks the user for their own free key.
+# The AcoustID key built into the program (acoustid_full.py).
 try:
     from acoustid_full import KEY as _BUILTIN_ACOUSTID_KEY
 except ImportError:

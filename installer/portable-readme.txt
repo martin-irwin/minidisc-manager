@@ -1,4 +1,4 @@
-MiniDisc Manager - portable version 0.22.1 (Restricted edition)
+MiniDisc Manager - portable version 0.22.1
 =========================================
 Copyright (c) 2026 Vinny Powell. Licence: see LICENSE.txt.
 
