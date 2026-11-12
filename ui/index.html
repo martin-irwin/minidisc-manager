@@ -426,6 +426,12 @@
   .file .meta { color: var(--muted); font-size: 12.5px; white-space: nowrap; }
   .notice { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 13px; margin: 10px 0; }
   .notice.warn { border-color: var(--warn); color: var(--text); }
+  /* the write-protected / pre-recorded note: stands out from the quiet notes around it (tinted, thick edge, bigger title, a short glow that pulses a few times) */
+  #protectNote { border: 1px solid #ff7a3d; border-left: 6px solid #ff7a3d; background: color-mix(in srgb, #ff7a3d 16%, var(--panel-2)); color: var(--text); padding: 14px 16px; animation: protectPulse 1.4s ease-in-out 4; }
+  #protectNote b { display: block; font-size: 17px; font-weight: 800; color: #ff9a5c; letter-spacing: .01em; }
+  #protectNote .meta { color: var(--text); font-size: 13.5px; line-height: 1.45; }
+  @keyframes protectPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 61, 0); } 50% { box-shadow: 0 0 0 5px rgba(255, 122, 61, .45), 0 0 18px 2px rgba(255, 122, 61, .35); } }
+  @media (prefers-reduced-motion: reduce) { #protectNote { animation: none; } }
   .row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
   .progress { height: 10px; border-radius: 99px; background: var(--chip); overflow: hidden; margin: 14px 0 6px; }
   .progress > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .25s; }
@@ -739,6 +745,18 @@
             <button id="lpSpHintHide" title="Hide this note for this disc">Hide for this disc</button>
           </div>
         </div>
+        <div id="protectNote" class="notice warn hidden" style="margin-top:12px">
+          <b id="protectNoteTitle">This disc is write-protected</b>
+          <div class="meta" style="white-space:normal;margin:4px 0 0" id="protectNoteText"></div>
+        </div>
+        <div id="pendingNote" class="notice hidden" style="margin-top:12px">
+          <b>Names found earlier for this disc</b>
+          <div class="meta" style="white-space:normal;margin:4px 0 8px" id="pendingNoteText"></div>
+          <div class="row" style="justify-content:flex-start;gap:8px;flex-wrap:wrap">
+            <button class="primary" id="pendingGo">Write them to the disc</button>
+            <button id="pendingForget" title="Throw the kept names away">Forget them</button>
+          </div>
+        </div>
         <div id="convertHint" class="notice hidden" style="margin-top:12px">
           <b>This disc can also be used as Hi-MD.</b>
           <div class="meta" style="white-space:normal;margin:4px 0 8px" id="convertHintText"></div>
@@ -1029,7 +1047,7 @@ async function load(noSync) {
   $('vol').style.display = playingRemote ? 'none' : '';      // a remote-controlled recorder's volume is set on the recorder
   setClock(r.clock);
   fmtInfo = { netmd, canHimd: !!r.canHimd, tracks: r.disc ? r.disc.tracks.length : null, protected: !!(r.disc && r.disc.writeProtected) };
-  $('convertHint').classList.add('hidden');                                             // shown again below only when it applies to this disc
+  $('convertHint').classList.add('hidden'); $('protectNote').classList.add('hidden'); $('pendingNote').classList.add('hidden');   // shown again below only when it applies to this disc
   if (r.discState === 'none') { $('content').classList.add('hidden'); emptyState('No disc in the recorder', 'Insert a Hi-MD or MD disc and press rescan.'); return; }
   if (r.discState === 'unreadable') {
     emptyState('This disc could not be read', r.discMessage || '');
@@ -1038,7 +1056,7 @@ async function load(noSync) {
   }
   const d = r.disc, used = d.total - d.free;
   if (!curDisc || curDisc.key !== d.key) setLookupNote('');                   // a different disc: the old lookup message no longer applies
-  curDisc = d; eqDiscChanged(d);
+  curDisc = d; eqDiscChanged(d); protectNoteRefresh(d); pendingNamesRefresh(d);
   $('grpNewRow').style.display = netmd ? 'none' : 'flex';
   $('keepRow').style.display = netmd ? 'none' : 'flex'; $('openList').style.display = netmd ? 'none' : ''; $('openList').disabled = netmd || !d.hasTracklist;
   if (noSync !== true) setTimeout(() => syncTracklist(d), 0);                  // after this page has been drawn
@@ -3909,7 +3927,7 @@ async function openEditPlan(op, nums, params) {
   else if (delFirst) parts.push(el('div', { className: 'notice warn' }, el('b', { textContent: 'There is no room next to the original, so it will be deleted from the disc first.' }),
       el('div', { textContent: 'A copy of the whole track is saved on this PC and its length checked before anything is deleted. The new tracks are then written and checked. If writing fails, the cut parts are kept in a folder on this PC and the copy stays in Saved copies. Do not unplug the recorder while it works.' })),
     el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, sure, el('span', { textContent: 'I understand that the original will be deleted from the disc.' })));
-  else if (r.netmd && r.writeProtected) parts.push(el('div', { className: 'notice warn', textContent: 'The disc is write-protected. Slide the tab on the cartridge so the small hole is closed, put the disc back, press the reload button and try again.' }));
+  else if (r.netmd && r.writeProtected) parts.push(el('div', { className: 'notice warn', textContent: 'The disc is write-protected. Slide the tab on the cartridge so the small window is closed, put the disc back, press the reload button and try again.' }));
   else if (r.netmd && !r.fits) parts.push(el('div', { className: 'notice warn', textContent: 'There is not enough free space on the disc for the new track' + (r.outs.length > 1 ? 's' : '') + ' while the original' + (nums.length > 1 ? 's are' : ' is') + ' still on it. Delete something you no longer need first (the original can only be deleted after the new tracks are written), then try again.' }));
   else if (!r.fits) parts.push(el('div', { className: 'notice warn', textContent: 'There is not enough free space on the disc for this, even if the original were deleted. Delete something you no longer need first, then try again.' }));
   if (!r.tmpFits) parts.push(el('div', { className: 'notice warn', textContent: 'There is not enough free space on this PC’s temporary drive for this.' }));
@@ -4204,6 +4222,38 @@ function convertGroupRefresh(canHimd) {
   }).catch(() => {});
 }
 $('convert').addEventListener('click', () => openConvert());
+// A note under the Recorder card whenever the loaded disc cannot be changed: its record tab is open (write-protected), or it is a pre-recorded disc.
+// It explains why the Disc Conversion suggestions and the edit buttons are not offered, and what to do about it. It goes by itself once the disc is writable.
+function protectNoteRefresh(d) {
+  const box = $('protectNote'), show = !!(d && (d.commercial || d.writeProtected));
+  box.classList.toggle('hidden', !show);
+  if (!show) return;
+  $('protectNoteTitle').textContent = d.commercial ? '🔒 This is a pre-recorded disc' : '🔒 This disc is write-protected';
+  $('protectNoteText').textContent = d.commercial
+    ? 'Pre-recorded discs cannot be changed, so nothing on it can be edited, converted or erased. You can still play it, look up its details and save its tracks to this PC.'
+    : 'The small tab on the corner of the cartridge is slid open (you can see through its little window), so the recorder will not change anything on the disc. ' +
+      'To edit, convert or add tracks: slide the tab closed, put the disc back in and press rescan. Playing the disc still works as normal.';
+}
+// Names the app found while the disc was write-protected (identify, lyrics, Apply names) are kept on this PC; when the same disc is loaded and can be written
+// to, this note offers to put them on it.
+async function pendingNamesRefresh(d) {
+  const box = $('pendingNote'); box.classList.add('hidden');
+  if (!d || d.commercial || d.writeProtected) return;
+  let r; try { r = await api().pending_names_check(); } catch (e) { return; }
+  if (!r || !r.items || !r.items.length || !curDisc || curDisc.key !== d.key) return;
+  const n = r.items.length, ex = r.items.slice(0, 3).map(x => '“' + x.title + '”' + (x.artist ? ' (' + x.artist + ')' : '')).join(', ');
+  $('pendingNoteText').textContent = 'While this disc was write-protected the app worked out names for ' + n + (n === 1 ? ' track' : ' tracks') + ' (' + ex + (n > 3 ? ', …' : '') + '), but could not write them. Put them on the disc now?';
+  box.classList.remove('hidden');
+  $('pendingForget').onclick = async () => { await api().pending_names_clear(); box.classList.add('hidden'); };
+  $('pendingGo').onclick = async () => {
+    const b = $('pendingGo'); b.disabled = true;
+    const res = await api().rename_tracks_each(current, r.items);
+    if (res && !res.error) {
+      if (netmd) await api().set_netmd_details(current, r.items.map(x => ({ number: x.number, artist: x.artist || null, album: x.album || null })));
+      await api().pending_names_clear(); box.classList.add('hidden'); toast('Names written to the disc.'); load(true);
+    } else { b.disabled = false; toast((res && res.error) || 'The names could not be written.', true); }
+  };
+}
 // A standard disc with audio, on a recorder that can also use Hi-MD: offer to convert it (once per run per disc; it can be switched off).
 // It is only a note under the Recorder card (no window opens by itself); the Convert button in the Disc Conversion card does the same.
 function convertHintRefresh(d) {

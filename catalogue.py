@@ -124,6 +124,93 @@ class CatalogueMixin:
             return {'error': 'Could not save the artist and album on this PC: %s' % exc}
         return {'ok': True}
 
+    # ---- Names that could not be written (write-protected disc) are kept on this PC and offered again when the disc is loaded writable --------
+    PENDING_FILE = os.path.join(USER_DIR, 'pending-names.json')
+
+    def _pending_read(self):
+        try:
+            with open(self.PENDING_FILE, encoding='utf-8') as f:
+                data = json.load(f)
+            return data if isinstance(data, dict) else {}
+        except (OSError, ValueError):
+            return {}
+
+    def _pending_write(self, data):
+        os.makedirs(USER_DIR, exist_ok=True)
+        tmp = self.PENDING_FILE + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, self.PENDING_FILE)
+
+    def _pending_find(self, data, tracks):
+        """The key of the saved entry for this disc: the same track count and lengths, or most of the lengths (a disc that was edited since)."""
+        key = self._netmd_disc_key(tracks)
+        if key in data:
+            return key
+        have = [t['seconds'] for t in tracks]
+        best, bestn = None, 0
+        for k, e in data.items():
+            sec = [x.get('s') for x in e.get('tracks', [])]
+            n = sum(min(sec.count(s), have.count(s)) for s in set(have) & set(sec))
+            if n > bestn:
+                best, bestn = k, n
+        return best if best is not None and bestn >= max(2, int(len(tracks) * 0.6)) else None
+
+    def pending_names_save(self, items):
+        """Keeps names the app wanted to write but could not (the disc is write-protected). items: [{number, title, artist, album}]. Never raises."""
+        try:
+            tracks = self._tracks or []
+            data = self._pending_read()
+            key = self._pending_find(data, tracks) or self._netmd_disc_key(tracks)
+            if not key:
+                return
+            by_s = {x['s']: x for x in data.get(key, {}).get('tracks', []) if x.get('s') is not None}
+            for it in items or []:
+                t = next((x for x in tracks if x['number'] == int(it['number'])), None)
+                title = str(it.get('title') or '').strip()
+                if t is None or not title:
+                    continue
+                by_s[t['seconds']] = {'s': t['seconds'], 'title': title, 'artist': str(it.get('artist') or '').strip(), 'album': str(it.get('album') or '').strip()}
+            if by_s:
+                data[key] = {'tracks': list(by_s.values()), 'saved': datetime.datetime.now().isoformat(timespec='minutes')}
+                self._pending_write(data)
+        except Exception:
+            pass
+
+    def pending_names_check(self):
+        """What this PC kept for the loaded disc and the disc does not have yet: {'items': [{number, title, artist, album}]}."""
+        try:
+            tracks = self._tracks or []
+            data = self._pending_read()
+            key = self._pending_find(data, tracks) if tracks else None
+            if key is None:
+                return {'items': []}
+            pool, items = list(data[key].get('tracks', [])), []
+            for t in tracks:
+                for i, x in enumerate(pool):
+                    if x.get('s') == t['seconds']:
+                        pool.pop(i)
+                        diff = (x.get('title') or '').strip().lower() != (t.get('title') or '').strip().lower()
+                        if not getattr(self, '_loaded_netmd', False):             # a standard disc keeps artist / album on this PC anyway
+                            diff = diff or ((x.get('artist') or '') != (t.get('artist') or '')) or ((x.get('album') or '') != (t.get('album') or ''))
+                        if diff and x.get('title'):
+                            items.append({'number': t['number'], 'title': x['title'], 'artist': x.get('artist') or '', 'album': x.get('album') or ''})
+                        break
+            return {'items': items}
+        except Exception:
+            return {'items': []}
+
+    def pending_names_clear(self):
+        try:
+            data = self._pending_read()
+            key = self._pending_find(data, self._tracks or [])
+            if key is not None:
+                data.pop(key, None)
+                self._pending_write(data)
+        except Exception:
+            pass
+        return {'ok': True}
+
     def _catalogue_note_netmd(self, title, tracks, model=''):
         """A standard disc has no serial number, so it is recognised by its track count and track lengths (a rename keeps them). When this
         app has added, deleted or moved tracks since the last load, the changed disc replaces the old entry instead of becoming a second one."""

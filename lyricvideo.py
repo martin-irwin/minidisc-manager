@@ -20,7 +20,9 @@ FPS = 25                                                # a very low frame rate 
 FONT = 'Segoe UI'                                       # ships with Windows (C:\Windows\Fonts\segoeui.ttf)
 FONTS_DIR = 'C\\:/Windows/Fonts'                        # as an ffmpeg filter option: the drive colon is escaped
 BG = '0x12161c'
+TOP = 54                                                # top of the cover / visualizer: level with the top of the heading's letters
 DIM, BRIGHT, ACCENT = '&H8F8F8F&', '&HFFFFFF&', '&H3CB4FF&'          # ASS colours are BGR
+LYRIC = '&HFFD9A6&'                                                  # the lyric being sung: light blue, apart from the white track title
 
 
 def _ts(sec):
@@ -33,7 +35,7 @@ def _esc(text):
     return re.sub(r'\s+', ' ', text.replace('\\', '/').replace('{', '(').replace('}', ')')).strip()
 
 
-def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album=''):
+def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False):
     """ASS subtitle text. lines: [(seconds, text)] (timed lyrics) or []. offset: the lyric timing correction kept by the app."""
     x0 = 520 if has_cover else 110
     head = ['[Script Info]', 'ScriptType: v4.00+', 'PlayResX: %d' % W, 'PlayResY: %d' % H, 'WrapStyle: 0', 'ScaledBorderAndShadow: yes', '',
@@ -43,15 +45,18 @@ def make_ass(title, artist, lines, offset, duration, has_cover, caption='', albu
             'Style: Default,%s,40,%s,%s,&H000000&,&H000000&,0,0,0,0,100,100,0,0,1,0,0,7,%d,60,0,1' % (FONT, BRIGHT, BRIGHT, x0),
             '', '[Events]', 'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text']
     end_all = _ts(duration + 30)
-    # Heading, top down: artist (largest), album, then the track title (a little smaller than both). Missing ones are skipped and the rest move up.
-    ev, y = [], 36
-    for text, size, style in ((artist, 50, '\\b1\\c' + BRIGHT), (album, 44, '\\b1\\c' + ACCENT), (title or 'Track', 38, '\\b0\\c' + BRIGHT)):
+    # Heading, top down, each in its own look so they read apart: the ARTIST small, amber, capitals, spaced out; the TRACK TITLE big, bold, white;
+    # the album dim grey and light; a thin rule; then the lyrics in light blue (the line being sung bold). Missing ones are skipped and the rest move up.
+    ev, y = [], 44                                       # the artist's capitals start level with the top of the cover
+    for text, size, style, gap in ((artist.upper() if artist else '', 32, '\\b1\\fsp4\\c' + ACCENT, 8), (title or 'Track', 58, '\\b1\\fsp0\\c' + BRIGHT, 4),
+                                   (album, 32, '\\b0\\fsp1\\c' + DIM, 0)):
         if text:
             ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\fs%d%s}%s' % (_ts(0), end_all, x0, y, size, style, _esc(text)))
-            y += int(size * 1.25) + 4
-    ly = y + 12                                          # where the lyrics start
-    if caption:                                          # the connected recorder, small and dim at the bottom of the screen
-        ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an1\\pos(%d,680)\\fs26\\c%s}%s' % (_ts(0), end_all, 60, DIM, _esc(caption)))
+            y += int(size * 1.25) + gap
+    ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)\\p1\\bord0\\shad0\\c&H5A5A5A&}m 0 0 l 700 0 l 700 2 l 0 2{\\p0}' % (_ts(0), end_all, x0, y + 16))
+    ly = y + 38                                          # where the lyrics start
+    if caption:                                          # the connected recorder, small and dim in the top right corner of the screen
+        ev.append('Dialogue: 0,%s,%s,Default,,0,0,0,,{\\an9\\pos(%d,8)\\fs26\\c%s}%s' % (_ts(0), end_all, W - 60, DIM, _esc(caption)))
     texts = [_esc(t) or '\u266a' for _, t in lines]
     for i, (t, _) in enumerate(lines):
         start = t + offset
@@ -61,12 +66,12 @@ def make_ass(title, artist, lines, offset, duration, has_cover, caption='', albu
         block = []
         if i > 0:
             block.append('{\\fs34\\b0\\c%s}%s' % (DIM, texts[i - 1]))
-        block.append('{\\fs52\\b1\\c%s}%s' % (BRIGHT, texts[i]))
-        for j in range(i + 1, min(i + 4, len(lines))):
+        block.append('{\\fs50\\b1\\c%s}%s' % (LYRIC, texts[i]))
+        for j in range(i + 1, min(i + (3 if compact else 4), len(lines))):             # compact: one line fewer, the deck panel sits below
             block.append('{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]))
         ev.append('Dialogue: 1,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)}%s' % (_ts(start), _ts(end), x0, ly, '\\N\\N'.join(block)))
     if lines and lines[0][0] + offset > 1:               # before the first line: show what is coming
-        pre = ['{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]) for j in range(min(3, len(lines)))]
+        pre = ['{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]) for j in range(min(2 if compact else 3, len(lines)))]
         ev.append('Dialogue: 1,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)}%s' % (_ts(0), _ts(lines[0][0] + offset), x0, ly, '\\N\\N'.join(pre)))
     return '\n'.join(head + ev) + '\n'
 
@@ -158,8 +163,9 @@ def _rgb(c):
 class Job:
     """One running ffmpeg making the stream for one track into `out_dir` (index.m3u8 + seg00000.ts ...)."""
 
-    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0):
-        """audio_src: the audio FILE (reading it from the app's own web address made ffmpeg stall). growing: the file is still being
+    def __init__(self, ffmpeg, audio_src, out_dir, title, artist, lines, offset, duration, cover_bytes=None, log=None, growing=False, caption='', album='', viz=None, start=0.0, deck=None):
+        """deck: {'pos', 'count', 'length'} to draw the deck's track number / time display (see vizrender.DeckPainter), or None.
+        audio_src: the audio FILE (reading it from the app's own web address made ffmpeg stall). growing: the file is still being
         written from the disc, so ffmpeg keeps reading at its end instead of stopping."""
         self.dir, self.proc, self.error = out_dir, None, ''
         if start > 0:                                       # a remake from the middle of the track: the stream starts there, lyrics and length shift to match
@@ -171,13 +177,25 @@ class Job:
         # Styles that need height (dials, columns, circle) get a bigger area under a smaller cover.
         on = bool(viz) and viz.get('style') not in (None, '', 'off')
         tall = on and viz.get('style') in ('radial', 'led', 'needle', 'vcream', 'vamber', 'rcream', 'ramber', 'rh1std')
+        py_deck = bool(deck) and vizrender.OK                # the deck's track number / time display, drawn in Python at the bottom right
         py_viz = on and vizrender.OK
-        cov = 300 if tall and cover_bytes else 400
-        vgeom = ((60, 465, 400, 190) if tall else (60, 575, 400, 95)) if cover_bytes else (60, 160, 400, 400)
+        piped = py_viz or py_deck                           # either one comes through stdin as one raw picture
+        cov = 400
+        # The cover's top is level with the top of the heading on the right (TOP); the visualizer sits under it at the bottom and the deck panel
+        # on the right has the same top and height, so the two line up.
+        vgeom = ((60, 490, 400, 190) if tall else (60, 584, 400, 96)) if cover_bytes else (60, TOP, 400, 400)
         vf = None if py_viz else viz_filter(viz, vgeom[2], vgeom[3])
+        # The one picture is the box around the parts shown: x0, y0, width, height.
+        dh = vgeom[3] if (py_viz and cover_bytes) else 96
+        dgeom = (520, 680 - dh if not (py_viz and cover_bytes) else vgeom[1], vizrender.DECK_W, dh) if py_deck else None
+        parts = ([vgeom] if py_viz else []) + ([dgeom] if py_deck else [])
+        box = None
+        if parts:
+            bx0, by0 = min(p[0] for p in parts), min(p[1] for p in parts)
+            box = (bx0, by0, max(p[0] + p[2] for p in parts) - bx0, max(p[1] + p[3] for p in parts) - by0)
         self.feeder = None
         with open(os.path.join(out_dir, 'lyrics.ass'), 'w', encoding='utf-8-sig') as f:
-            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album))
+            f.write(make_ass(title, artist, lines, offset, duration, bool(cover_bytes) or bool(vf) or py_viz, caption, album, compact=py_deck))
         # A file still being read from the disc: the end of the track is its known length (-t below), not a pause in the data (a read from the recorder
         # can stall for ten seconds or more and then carry on; treating that as the end stopped the TV halfway). The long time-out is only the safety net
         # for a read that has really died; with no known length the old 10 s rule stays.
@@ -190,13 +208,13 @@ class Job:
             with open(os.path.join(out_dir, 'cover.img'), 'wb') as f:
                 f.write(cover_bytes)
             cmd += ['-loop', '1', '-framerate', str(FPS), '-i', 'cover.img']
-            graph = '[2:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[1:v][c]overlay=%d:%d:shortest=1[b]' % (cov, cov, 60 + (400 - cov) // 2, 160 if cov == 400 else 150)
+            graph = '[2:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[1:v][c]overlay=%d:%d:shortest=1[b]' % (cov, cov, 60, TOP)
         else:
             graph = '[1:v]null[b]'
-        if py_viz:                                          # the pictures come through stdin as raw RGB frames, made from a second decoding of the same audio
+        if piped:                                           # the pictures come through stdin as raw RGB frames, made from a second decoding of the same audio
             vi = 3 if cover_bytes else 2
-            cmd += ['-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (vgeom[2], vgeom[3]), '-framerate', str(vizrender.FPS), '-i', 'pipe:0']
-            graph += ';[b][%d:v]overlay=%d:%d:shortest=1[b2]' % (vi, vgeom[0], vgeom[1])
+            cmd += ['-f', 'rawvideo', '-pix_fmt', 'rgb24', '-s', '%dx%d' % (box[2], box[3]), '-framerate', str(vizrender.FPS), '-i', 'pipe:0']
+            graph += ';[b][%d:v]overlay=%d:%d:shortest=1[b2]' % (vi, box[0], box[1])
         elif vf:
             graph += ';%s;[b][vz]overlay=%d:%d:shortest=1[b2]' % (vf, vgeom[0], vgeom[1])
         else:
@@ -206,10 +224,18 @@ class Job:
                 '-c:a', 'aac', '-b:a', '192k', '-ar', '44100', '-ac', '2',
                 '-f', 'hls', '-hls_time', '2', '-hls_list_size', '0', '-hls_playlist_type', 'event', '-hls_segment_filename', 'seg%05d.ts', 'index.m3u8']
         flags = getattr(subprocess, 'CREATE_NO_WINDOW', 0)
-        self.proc = subprocess.Popen(cmd, cwd=out_dir, stdin=subprocess.PIPE if py_viz else subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=flags)
-        if py_viz:
+        self.proc = subprocess.Popen(cmd, cwd=out_dir, stdin=subprocess.PIPE if piped else subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, creationflags=flags)
+        if piped:
             try:
-                self.feeder = vizrender.Feeder(ffmpeg, src, vizrender.painter_for(viz, vgeom[2], vgeom[3]), self.proc.stdin, flags)
+                if py_deck:
+                    dk = dict(deck, start=start)
+                    colour = str((viz or {}).get('color') or 'accent')
+                    accent = vizrender._hex((viz or {}).get('accent') or '#7aa2ff')
+                    pic = vizrender.Composite(box[2], box[3], vizrender.painter_for(viz, vgeom[2], vgeom[3]) if py_viz else None, (vgeom[0] - box[0], vgeom[1] - box[1]),
+                                              vizrender.DeckPainter(dk, colour, accent, dgeom[3]), (dgeom[0] - box[0], dgeom[1] - box[1]), start)
+                else:
+                    pic = vizrender.painter_for(viz, vgeom[2], vgeom[3])
+                self.feeder = vizrender.Feeder(ffmpeg, src, pic, self.proc.stdin, flags)
                 self.feeder.start()
             except Exception as exc:                        # no pictures: the stream would wait for them, so end it and let the caller play the audio only
                 self.error = 'visualizer: %s' % exc

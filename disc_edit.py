@@ -154,6 +154,20 @@ class DiscEditMixin:
         return self._edit(index, 'details of %d tracks' % len(wanted), apply)
 
     def rename_tracks_each(self, index, items):
+        """As _rename_tracks_each_now; when the disc refuses the change (write-protected), the names are kept on this PC (pending-names.json) and
+        offered again the next time the disc is loaded and writable, and a standard disc's artist / album are kept as usual."""
+        res = self._rename_tracks_each_now(index, items)
+        if 'error' in res:
+            self.pending_names_save(items)
+            if self._is_netmd(index):
+                try:
+                    self.set_netmd_details(index, [{'number': it.get('number'), 'artist': it.get('artist'), 'album': it.get('album')} for it in items or []])
+                except Exception:
+                    pass
+            res = dict(res, error=res['error'] + ' The names were kept on this PC: the next time this disc is loaded and can be written to, the app offers to put them on it.')
+        return res
+
+    def _rename_tracks_each_now(self, index, items):
         """Gives each listed track its own details in one change (Hi-MD only). `items`: [{number, title, artist, album}]; a title that is
         empty is left alone, artist / album are only set when given. A standard disc only has titles, which are set one track at a time."""
         if self._is_netmd(index):

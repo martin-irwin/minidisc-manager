@@ -57,7 +57,7 @@ from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.27.5'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.27.6'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0

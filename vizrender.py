@@ -525,6 +525,90 @@ class Painter:
         return out
 
 
+# ---------------------------------------------------------------------- the deck's time display
+# The window's "Track time" card (ui\index.html, deckTimes / segHtml) drawn for the TV: the same seven-segment digits (same polygons, unlit segments
+# faintly visible), in the visualiser's colour. Shows the track number and the elapsed / remaining / total time of the track.
+DECK_INK = {'oled': '#3fa2ff', 'fire': '#ff9a3d', 'ice': '#7ad7ff', 'classic': '#4cdf6a', 'white': '#f2f2f2'}
+SEG_ON = {'0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g'}
+SEG_P = {'a': '2,1 12,1 10,3.6 4,3.6', 'b': '13,1.8 13,11.4 10.6,10.2 10.6,4.2', 'c': '13,12.6 13,22.2 10.6,19.8 10.6,13.8', 'd': '2,23 12,23 10,20.4 4,20.4',
+         'e': '1,12.6 3.4,13.8 3.4,19.8 1,22.2', 'f': '1,1.8 3.4,4.2 3.4,10.2 1,11.4', 'g': '2.2,12 4.2,9.7 9.8,9.7 11.8,12 9.8,14.3 4.2,14.3'}
+SEG_POLY = {k: [tuple(float(v) for v in p.split(',')) for p in s.split()] for k, s in SEG_P.items()} if OK else {}
+DECK_W, DECK_H = 700, 72
+
+
+def _clock(sec):
+    sec = max(0, int(sec))
+    return '%d:%02d' % (sec // 60, sec % 60)
+
+
+class DeckPainter:
+    """info: {'pos': track's place on the disc (1..), 'count': tracks on the disc, 'length': seconds, 'start': seconds the stream begins at}."""
+
+    def __init__(self, info, colour, accent, height=DECK_H):
+        self.info, self.h = info, int(height)
+        self.ink = _hex(DECK_INK.get(colour)) if colour in DECK_INK else accent
+        self.key, self.img = None, None
+
+    def _digits(self, d, text, x, y, h, k):
+        """Seven-segment text (digits, ':' and '-'), top-left at (x, y), digit height h, all in drawn (k times) units. Returns the x after it."""
+        sc = h / 24.0
+        for ch in text:
+            if ch == ':':
+                for cy in (8, 16.4):
+                    r = 1.7 * sc
+                    d.ellipse([x + 3 * sc - r, y + cy * sc - r, x + 3 * sc + r, y + cy * sc + r], fill=self.ink)
+                x += 6 * sc + 2 * k
+                continue
+            lit = SEG_ON.get(ch, '')
+            if ch in SEG_ON:
+                for seg, pts in SEG_POLY.items():
+                    d.polygon([(x + px * sc, y + py * sc) for px, py in pts], fill=self.ink if seg in lit else _mix(self.ink, 0.09, (10, 13, 17)))
+            x += 14 * sc + 2 * k
+        return x
+
+    def image(self, t):
+        """The panel (RGB, DECK_W x DECK_H) for t seconds into the track; redrawn only when the shown second changes."""
+        el = int(max(0.0, t))
+        if el == self.key:
+            return self.img
+        k = 3
+        inf = self.info
+        length = int(inf.get('length') or 0)
+        img = Image.new('RGB', (DECK_W * k, self.h * k), BG)
+        d = ImageDraw.Draw(img)
+        d.rounded_rectangle([0, 0, DECK_W * k - 1, self.h * k - 1], radius=12 * k, fill=(10, 13, 17), outline=(46, 52, 62), width=k)
+        oy = (self.h - DECK_H) * k // 2                                    # the readings sit in the middle of the panel when it is taller than they are
+        cell = (DECK_W - 24) / 4.0
+        cells = [('TRACK', '%02d' % inf.get('pos', 1)), ('ELAPSED', _clock(el)), ('REMAINING', '-' + _clock(length - el) if length else '--:--'),
+                 ('TRACK LENGTH', _clock(length) if length else '--:--')]
+        lab, big = _font(12 * k, True), _font(20 * k, True)
+        for i, (name, text) in enumerate(cells):
+            x = (12 + i * cell) * k
+            d.text((x, 8 * k + oy), name, font=lab, fill=(143, 143, 143))
+            end = self._digits(d, text, x, 26 * k + oy, 36 * k, k)
+            if i == 0:
+                d.text((end + 4 * k, 34 * k + oy),'/ %02d' % inf.get('count', 1), font=big, fill=(143, 143, 143))
+        self.key, self.img = el, img.reduce(k)
+        return self.img
+
+
+class Composite:
+    """Stands in for a Painter when the TV picture also carries the deck display: one frame (w x h) holding the visualizer and / or the deck panel at
+    their places (viz_at / deck_at, inside the frame); the rest is the lyric video's background colour, so the lyrics drawn over it show as usual."""
+
+    def __init__(self, w, h, painter, viz_at, deck, deck_at, start=0.0):
+        self.w, self.h, self.painter, self.viz_at, self.deck, self.deck_at, self.start, self.n = w, h, painter, viz_at, deck, deck_at, start, 0
+
+    def frame(self, l, r):
+        base = Image.new('RGB', (self.w, self.h), BG)
+        if self.painter:
+            base.paste(Image.frombytes('RGB', (self.painter.w1, self.painter.h1), self.painter.frame(l, r)), self.viz_at)
+        if self.deck:
+            base.paste(self.deck.image(self.start + self.n / float(FPS)), self.deck_at)
+        self.n += 1
+        return base.tobytes()
+
+
 # ---------------------------------------------------------------------- the feeder
 def painter_for(viz, w, h):
     style = str(viz.get('style'))
