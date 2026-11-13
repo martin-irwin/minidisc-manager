@@ -1136,7 +1136,7 @@ async function load(noSync) {
   setTimeout(() => maybeAskMissing(d), 700);                                               // a disc with no artists / albums, picture or lyrics: offer to look them up
   lpSpHintRefresh(d); convertHintRefresh(d);                                                                   // a standard disc with audio on a Hi-MD recorder: a note under the Recorder card says it can be converted
   convertGroupRefresh(r.canHimd);
-  if (!netmd && !uploading && !convertRunning && !d.tracks.length && !convertResumeShown) {     // an empty Hi-MD disc while converted tracks wait on this PC: offer to write them
+  if (!uploading && !convertRunning && !d.tracks.length && !convertResumeShown && (!netmd || r.canHimd)) {     // an empty Hi-MD disc while converted tracks wait on this PC: offer to write them
     api().convert_status().then(s => { if (s && s.pending && !uploading && !convertRunning && !convertResumeShown) { convertResumeShown = true; openConvertResume(s.pending); } });
   }
   if (!netmd && !stagedShown && !uploading) {                                               // saved new tracks from an earlier split: say so once per run
@@ -4635,7 +4635,7 @@ async function openConvert() {
   openFloat(el('h2', { textContent: 'Convert to Hi-MD' }), el('div', { className: 'notice', textContent: 'Checking the disc…' }));
   const st = await api().convert_status();
   if (st && st.pending) {
-    if (!netmd) { openConvertResume(st.pending); return; }
+    if (!netmd || fmtInfo.tracks === 0) { openConvertResume(st.pending); return; }
     openFloat(el('h2', { textContent: 'A converted disc is waiting' }),
       el('div', { className: 'notice', textContent: st.pending.tracks + ' tracks (' + len(st.pending.seconds) + ') from a standard disc are saved on this PC, waiting to be written to an empty Hi-MD disc. Format a disc as Hi-MD, or insert an empty one, and the program offers to write them.' }),
       el('div', { className: 'row' }, el('button', { className: 'danger', textContent: 'Discard the saved tracks', onclick: async () => { await api().convert_discard(); convertPending = false; closeSheet(); toast('Saved tracks deleted'); convertGroupRefresh(fmtInfo.canHimd); } }),
@@ -4651,6 +4651,12 @@ async function openConvert() {
   let codec = fits('hisp') ? 'hisp' : fits('hilp') ? 'hilp' : 'hisp';
   const parts = [el('h2', { textContent: 'Convert this disc to Hi-MD' }),
     el('div', { className: 'sub', textContent: plan.tracks.length + ' tracks, ' + len(plan.seconds) + ' of audio. The tracks are copied to this PC, the disc is set up as Hi-MD, and the tracks are written back with their titles, groups and disc name.' })];
+  parts.push(el('div', { className: 'notice', style: 'line-height:1.5' }, el('b', { textContent: 'How it works, and why your music stays safe' }), el('br'),
+    '1. Every track is copied to this PC first. The disc is not touched, and you can cancel.', el('br'),
+    '2. Only when all of them are saved and checked is the disc erased and set up as Hi-MD. The recorder may need to be unplugged and plugged back in: the program tells you when.', el('br'),
+    '3. The tracks are written back with their titles, groups and disc name, and the disc is read again to check.', el('br'),
+    'Please be patient: the whole job takes about as long as the disc plays, plus a few minutes, and the progress bar may pause for a minute or two at times. That is normal.', el('br'),
+    'If anything goes wrong after step 1, the copy stays on this PC (even if you close the program) and the program offers to finish the job next time. Nothing is deleted from this PC until the Hi-MD disc has been checked.'));
   parts.push(el('div', { className: 'eyebrow', textContent: 'Write the tracks back as' }));
   CONV_CODECS.forEach(([k, name, text]) => {
     const ok = fits(k);
@@ -4682,14 +4688,18 @@ async function openConvert() {
   parts.push(el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   openFloat(...parts);
 }
+let convSavedN = 0;                                                                     // how many tracks are safely stored on this PC (0 until stage 1 is done)
 function convProg(withCancel) {
   const prog = liveProgress('Starting…', 8, true);
   const cancel = el('button', { textContent: 'Cancel', onclick: () => { cancel.disabled = true; prog.set('Stopping…', 0); api().save_cancel(); } });
   openFloat(el('h2', { textContent: 'Converting to Hi-MD' }), prog.what, prog.bar, prog.stallBox,
-    el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder or close this window until it finishes.' }), withCancel ? el('div', { className: 'row' }, cancel) : '');
+    convSavedN ? el('div', { className: 'notice', textContent: '✔ Your ' + convSavedN + ' tracks are safely saved on this PC. Nothing is lost, even if something goes wrong now: just reopen the program and it offers to finish the job.' })
+               : el('div', { className: 'notice', textContent: 'Your disc is not changed during this first step. You can press Cancel at any time.' }),
+    el('div', { className: 'notice', textContent: '⏳ Please be patient. This takes a while: roughly as long as the disc plays, plus a few minutes. The bar can sit still for a minute or two, especially while the disc is erased and set up, and that is normal. Leave the program and the recorder alone and it will get there.' }),
+    el('div', { className: 'notice warn', textContent: 'Do not unplug the recorder unless the program asks you to, and leave this window open until it says it has finished.' }), withCancel ? el('div', { className: 'row' }, cancel) : '');
   return prog;
 }
-function convEnd() { convertRunning = false; uploading = false; window.onSaveProgress = null; window.onFormatProgress = null; window.onUploadProgress = null; }
+function convEnd() { convSavedN = 0; convertRunning = false; uploading = false; window.onSaveProgress = null; window.onFormatProgress = null; window.onUploadProgress = null; }
 async function runConvert(codec, exploit) {
   convertRunning = true; uploading = true; stopPlayer();
   let prog = convProg(true);
@@ -4701,10 +4711,10 @@ async function runConvert(codec, exploit) {
   window.onSaveProgress = null; prog.stop();
   if (r.cancelled) { convEnd(); closeSheet(); toast('Cancelled. The disc was not changed.'); return; }
   if (r.error) { convEnd(); errorSheet('The disc was not changed', r.error, { kept: 'Nothing was erased or written on the disc.', onClose: () => scan() }); return; }
-  convertPending = true;
+  convertPending = true; convSavedN = r.tracks;
   if (r.exploitUsed) {                                                                  // the recorder was patched in memory: it must be unplugged before it is formatted
     await new Promise(res => openFloat(el('h2', { textContent: 'Unplug and replug the recorder' }),
-      el('div', { className: 'notice warn', textContent: 'All ' + r.tracks + ' tracks are saved on this PC. The recorder was patched in memory to read them: unplug its USB cable, plug it back in, wait about ten seconds, then press Continue.' }),
+      el('div', { className: 'notice warn', textContent: 'Good news: all ' + r.tracks + ' tracks are now saved on this PC. The recorder was patched in memory to read them, so it needs a restart before the disc is set up. 1. Unplug its USB cable. 2. Plug it back in and wait about ten seconds. 3. Press Continue.' }),
       el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Continue', onclick: res }))));
     await scan();
   }
@@ -4713,17 +4723,44 @@ async function runConvert(codec, exploit) {
   window.onFormatProgress = t => prog.set('Stage 2 of 3: ' + t, 0, 0.45);
   const f = await api().format_disc(current, 'himd', 'FORMAT');
   window.onFormatProgress = null; prog.stop();
-  if (f.error) {
-    convEnd();
-    if (/reject/i.test(String(f.error))) {                                                // the NH700 often refuses the first erase-and-switch: a replug and the Format button get it going
-      errorSheet('The recorder needs a restart', f.error, { kept: 'Your ' + r.tracks + ' tracks are safe on this PC. Unplug the recorder’s USB cable, plug it back in and wait about ten seconds. Then press rescan, choose Format (in Disc Management) and set the disc up as Hi-MD. When it is an empty Hi-MD disc, the program offers to write your saved tracks.', onClose: () => scan() });
-      return;
-    }
-    errorSheet(f.unfinished ? 'Setting up the Hi-MD disc is not finished' : 'The disc could not be formatted', f.error, { kept: 'Your ' + r.tracks + ' tracks are safe on this PC. When the disc is an empty Hi-MD disc, the program offers to write them.', onClose: () => scan() }); return;
-  }
+  if (f.error) { await convRecover(codec, r.tracks, f.error); return; }
   await scan();                                                                         // the recorder came back as a Hi-MD device
   prog = convProg(false);
   await convertWrite(codec, prog, r.tracks, 0.5);
+}
+// Stage 2 did not finish (the NH700 often refuses the erase-and-switch, or does not come back): the tracks are safe on this PC. Ask for a replug, then
+// set the disc up as Hi-MD and write the tracks, all without the user having to find the Format button. Repeats until it works or the user cancels.
+async function convRecover(codec, n, why) {
+  convSavedN = n;
+  convertRunning = true; uploading = true;
+  for (;;) {
+    const go = await new Promise(res => openFloat(el('h2', { textContent: 'Unplug and replug the recorder' }),
+      el('div', { className: 'notice warn', textContent: (why ? String(why) + ' ' : '') + 'Don’t worry: your ' + n + ' tracks are safe on this PC, and nothing is lost. The recorder sometimes needs a restart at this point. 1. Unplug its USB cable. 2. Plug it back in and wait about ten seconds. 3. Press Continue. Please be patient after that: setting up the disc can take a couple of minutes. The program then finishes setting up the disc as Hi-MD and writes the tracks back.' }),
+      el('div', { className: 'row' }, el('button', { textContent: 'Later', onclick: () => res(false) }), el('button', { className: 'primary', textContent: 'Continue', onclick: () => res(true) }))));
+    if (!go) { convEnd(); closeSheet(); scan(); return; }
+    await scan();
+    let prog = convProg(false);
+    if (netmd) {                                                                          // still in standard mode: erase (already empty) and switch to Hi-MD
+      prog.set('Stage 2 of 3: setting the disc up as Hi-MD (about a minute)…', 0, 0.45);
+      window.onFormatProgress = t => prog.set('Stage 2 of 3: ' + t, 0, 0.45);
+      const f = await api().format_disc(current, 'himd', 'FORMAT');
+      window.onFormatProgress = null; prog.stop();
+      if (f.error) { why = f.error; continue; }
+      await scan(); prog = convProg(false);
+    } else if (!(await api().convert_status()).pending) { convEnd(); closeSheet(); return; }
+    await convertWrite(codec, prog, n, 0.5);
+    return;
+  }
+}
+async function convRecover2(codec, n) { convSavedN = n;                                              // empty standard disc + saved tracks: set up as Hi-MD now, replug only if that fails
+  const prog = convProg(false);
+  prog.set('Stage 2 of 3: setting the disc up as Hi-MD (about a minute)…', 0, 0.45);
+  window.onFormatProgress = t => prog.set('Stage 2 of 3: ' + t, 0, 0.45);
+  const f = await api().format_disc(current, 'himd', 'FORMAT');
+  window.onFormatProgress = null; prog.stop();
+  if (f.error) { await convRecover(codec, n, f.error); return; }
+  await scan();
+  await convertWrite(codec, convProg(false), n, 0.5);
 }
 async function convertWrite(codec, prog, n, base) {
   prog.set('Stage 3 of 3: starting…', 0, base);
@@ -4735,7 +4772,7 @@ async function convertWrite(codec, prog, n, base) {
     return;
   }
   const name = (CONV_CODECS.find(c => c[0] === codec) || [0, codec])[1];
-  const parts = [el('h2', { textContent: 'Converted to Hi-MD' }), el('div', { className: 'notice', textContent: r.tracks + (r.tracks === 1 ? ' track is' : ' tracks are') + ' now on the Hi-MD disc as ' + name + ', and the disc has been read again to check.' })];
+  const parts = [el('h2', { textContent: 'Converted to Hi-MD' }), el('div', { className: 'notice', textContent: r.tracks + (r.tracks === 1 ? ' track is' : ' tracks are') + ' now on the Hi-MD disc as ' + name + ', and the disc has been read again to check.' + ((r.notes || []).length ? '' : ' The temporary copy on this PC has been removed. You can unplug the recorder safely.') })];
   for (const t of r.notes || []) parts.push(el('div', { className: 'notice warn', textContent: t }));
   parts.push(el('div', { className: 'row' }, el('button', { className: 'primary', textContent: 'Close', onclick: () => { closeSheet(); scan(); } })));
   openFloat(...parts);
@@ -4744,7 +4781,7 @@ async function convertWrite(codec, prog, n, base) {
 function openConvertResume(p) {
   let codec = p.codec || 'hisp';
   const parts = [el('h2', { textContent: 'Write the saved tracks to this disc?' }),
-    el('div', { className: 'notice', textContent: p.tracks + ' tracks (' + len(p.seconds) + ')' + (p.title ? ' from “' + p.title + '”' : '') + ' were saved on this PC from a standard disc' + (p.when ? ' (' + p.when.replace('T', ' ') + ')' : '') + '. This disc is an empty Hi-MD disc.' })];
+    el('div', { className: 'notice', textContent: p.tracks + ' tracks (' + len(p.seconds) + ')' + (p.title ? ' from “' + p.title + '”' : '') + ' were saved on this PC from a standard disc' + (p.when ? ' (' + p.when.replace('T', ' ') + ')' : '') + (netmd ? '. The disc is empty but still in standard mode: the program sets it up as Hi-MD first.' : '. This disc is an empty Hi-MD disc.') })];
   CONV_CODECS.forEach(([k, name, text]) => parts.push(el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:flex-start;cursor:pointer' },
     el('input', { type: 'radio', name: 'convcodec2', checked: k === codec, onchange: () => { codec = k; } }), el('span', {}, el('b', { textContent: name }), ' – ' + text))));
   parts.push(el('div', { className: 'row' },
@@ -4752,6 +4789,8 @@ function openConvertResume(p) {
     el('button', { textContent: 'Not now', onclick: closeSheet }),
     el('button', { className: 'primary', textContent: 'Write them', onclick: async () => {
       convertRunning = true; uploading = true; stopPlayer();
+      if (netmd) { await convRecover2(codec, p.tracks); return; }
+      convSavedN = p.tracks;
       const prog = convProg(false);
       await convertWrite(codec, prog, p.tracks, 0);
     } })));
