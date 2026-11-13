@@ -157,7 +157,7 @@ class DiscEditMixin:
         """As _rename_tracks_each_now; when the disc refuses the change (write-protected), the names are kept on this PC (pending-names.json) and
         offered again the next time the disc is loaded and writable, and a standard disc's artist / album are kept as usual."""
         res = self._rename_tracks_each_now(index, items)
-        if 'error' in res:
+        if 'error' in res and (res.get('protected') or 'protect' in res['error'].lower()):          # only a refusal because of the write protection is worth keeping for later
             self.pending_names_save(items)
             if self._is_netmd(index):
                 try:
@@ -184,7 +184,7 @@ class DiscEditMixin:
             if failed and not done:
                 if 'rejected' in failed[0].lower():                 # the recorder's own refusal (a long hex string): say what it nearly always means
                     protected = any(not t.get('deletable', True) for t in self._tracks)
-                    return {'error': 'The recorder refused to change the disc.' + (' It reports the disc as write-protected: ' if protected else ' If the disc is write-protected, ') +
+                    return {'protected': True, 'error': 'The recorder refused to change the disc.' + (' It reports the disc as write-protected: ' if protected else ' If the disc is write-protected, ') +
                                       'slide the tab on the cartridge so the small hole is closed, put the disc back, press the reload button and try again. (Recorder reply: %s)' % failed[0][:120]}
                 return {'error': failed[0]}
             return {'ok': True, 'done': done, 'failed': len(failed)}

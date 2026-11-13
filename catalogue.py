@@ -58,13 +58,50 @@ class CatalogueMixin:
     def _netmd_disc_key(tracks):
         return ('md-' + hashlib.sha1(('%d|%s' % (len(tracks), ','.join(str(t['seconds']) for t in tracks))).encode()).hexdigest()[:16]) if tracks else None
 
-    def _details_read(self):
+    @staticmethod
+    def _json_read(path):
         try:
-            with open(self.DETAILS_FILE, encoding='utf-8') as f:
+            with open(path, encoding='utf-8') as f:
                 data = json.load(f)
             return data if isinstance(data, dict) else {}
         except (OSError, ValueError):
             return {}
+
+    @staticmethod
+    def _json_write(path, data):
+        os.makedirs(USER_DIR, exist_ok=True)
+        tmp = path + '.tmp'
+        with open(tmp, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False)
+        os.replace(tmp, path)
+
+    def _details_read(self):
+        return self._json_read(self.DETAILS_FILE)
+
+    @staticmethod
+    def _match_disc(data, tracks):
+        """The key of the saved disc these tracks belong to: the same track count and lengths, or (a disc edited since) most of the lengths."""
+        key = CatalogueMixin._netmd_disc_key(tracks)
+        if key in data:
+            return key
+        have = [t['seconds'] for t in tracks]
+        best, bestn = None, 0
+        for k, e in data.items():
+            sec = [x.get('s') for x in e.get('tracks', [])]
+            n = sum(min(sec.count(s), have.count(s)) for s in set(have) & set(sec))
+            if n > bestn:
+                best, bestn = k, n
+        return best if best is not None and bestn >= max(2, int(len(tracks) * 0.6)) else None
+
+    @staticmethod
+    def _pair_by_seconds(tracks, entries):
+        """Each track with the first unused saved entry of the same length (tracks of equal length take their entries in order)."""
+        pool = list(entries)
+        for t in tracks:
+            for i, x in enumerate(pool):
+                if x.get('s') == t['seconds']:
+                    yield t, pool.pop(i)
+                    break
 
     def _netmd_details_apply(self, tracks):
         """A standard disc cannot store an artist or album, so this PC remembers them: per disc (recognised like the catalogue does), each
@@ -72,26 +109,11 @@ class CatalogueMixin:
         track lengths match. Fills the artist and album of `tracks` in place."""
         try:
             data = self._details_read()
-            entry = data.get(self._netmd_disc_key(tracks))
-            if entry is None:
-                have = [t['seconds'] for t in tracks]
-                best, bestn = None, 0
-                for e in data.values():
-                    sec = [x.get('s') for x in e.get('tracks', [])]
-                    n = sum(min(sec.count(s), have.count(s)) for s in set(have) & set(sec))
-                    if n > bestn:
-                        best, bestn = e, n
-                if best is not None and bestn >= max(2, int(len(tracks) * 0.6)):
-                    entry = best
-            if not entry:
+            key = self._match_disc(data, tracks)
+            if key is None:
                 return
-            pool = list(entry.get('tracks', []))
-            for t in tracks:
-                for i, x in enumerate(pool):
-                    if x.get('s') == t['seconds']:
-                        t['artist'], t['album'] = x.get('a') or '', x.get('b') or ''
-                        pool.pop(i)
-                        break
+            for t, x in self._pair_by_seconds(tracks, data[key].get('tracks', [])):
+                t['artist'], t['album'] = x.get('a') or '', x.get('b') or ''
         except Exception:
             pass                                             # a convenience: never let it break loading a disc
 
@@ -115,11 +137,7 @@ class CatalogueMixin:
                 data[key] = {'tracks': entry}
             else:
                 data.pop(key, None)
-            os.makedirs(USER_DIR, exist_ok=True)
-            tmp = self.DETAILS_FILE + '.tmp'
-            with open(tmp, 'w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False)
-            os.replace(tmp, self.DETAILS_FILE)
+            self._json_write(self.DETAILS_FILE, data)
         except (OSError, KeyError, TypeError, ValueError) as exc:
             return {'error': 'Could not save the artist and album on this PC: %s' % exc}
         return {'ok': True}
@@ -128,52 +146,27 @@ class CatalogueMixin:
     PENDING_FILE = os.path.join(USER_DIR, 'pending-names.json')
 
     def _pending_read(self):
-        try:
-            with open(self.PENDING_FILE, encoding='utf-8') as f:
-                data = json.load(f)
-            return data if isinstance(data, dict) else {}
-        except (OSError, ValueError):
-            return {}
-
-    def _pending_write(self, data):
-        os.makedirs(USER_DIR, exist_ok=True)
-        tmp = self.PENDING_FILE + '.tmp'
-        with open(tmp, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False)
-        os.replace(tmp, self.PENDING_FILE)
-
-    def _pending_find(self, data, tracks):
-        """The key of the saved entry for this disc: the same track count and lengths, or most of the lengths (a disc that was edited since)."""
-        key = self._netmd_disc_key(tracks)
-        if key in data:
-            return key
-        have = [t['seconds'] for t in tracks]
-        best, bestn = None, 0
-        for k, e in data.items():
-            sec = [x.get('s') for x in e.get('tracks', [])]
-            n = sum(min(sec.count(s), have.count(s)) for s in set(have) & set(sec))
-            if n > bestn:
-                best, bestn = k, n
-        return best if best is not None and bestn >= max(2, int(len(tracks) * 0.6)) else None
+        return self._json_read(self.PENDING_FILE)
 
     def pending_names_save(self, items):
         """Keeps names the app wanted to write but could not (the disc is write-protected). items: [{number, title, artist, album}]. Never raises."""
         try:
             tracks = self._tracks or []
             data = self._pending_read()
-            key = self._pending_find(data, tracks) or self._netmd_disc_key(tracks)
+            key = self._match_disc(data, tracks) or self._netmd_disc_key(tracks)
             if not key:
                 return
-            by_s = {x['s']: x for x in data.get(key, {}).get('tracks', []) if x.get('s') is not None}
+            new = []
             for it in items or []:
                 t = next((x for x in tracks if x['number'] == int(it['number'])), None)
                 title = str(it.get('title') or '').strip()
-                if t is None or not title:
-                    continue
-                by_s[t['seconds']] = {'s': t['seconds'], 'title': title, 'artist': str(it.get('artist') or '').strip(), 'album': str(it.get('album') or '').strip()}
-            if by_s:
-                data[key] = {'tracks': list(by_s.values()), 'saved': datetime.datetime.now().isoformat(timespec='minutes')}
-                self._pending_write(data)
+                if t is not None and title:
+                    new.append({'s': t['seconds'], 'title': title, 'artist': str(it.get('artist') or '').strip(), 'album': str(it.get('album') or '').strip()})
+            if new:                                                       # new names replace the old ones of tracks with the same lengths; the rest are kept
+                lengths = {x['s'] for x in new}
+                kept = [x for x in data.get(key, {}).get('tracks', []) if x.get('s') not in lengths]
+                data[key] = {'tracks': kept + new, 'saved': datetime.datetime.now().isoformat(timespec='minutes')}
+                self._json_write(self.PENDING_FILE, data)
         except Exception:
             pass
 
@@ -182,20 +175,17 @@ class CatalogueMixin:
         try:
             tracks = self._tracks or []
             data = self._pending_read()
-            key = self._pending_find(data, tracks) if tracks else None
+            key = self._match_disc(data, tracks) if tracks and data else None
             if key is None:
                 return {'items': []}
-            pool, items = list(data[key].get('tracks', [])), []
-            for t in tracks:
-                for i, x in enumerate(pool):
-                    if x.get('s') == t['seconds']:
-                        pool.pop(i)
-                        diff = (x.get('title') or '').strip().lower() != (t.get('title') or '').strip().lower()
-                        if not getattr(self, '_loaded_netmd', False):             # a standard disc keeps artist / album on this PC anyway
-                            diff = diff or ((x.get('artist') or '') != (t.get('artist') or '')) or ((x.get('album') or '') != (t.get('album') or ''))
-                        if diff and x.get('title'):
-                            items.append({'number': t['number'], 'title': x['title'], 'artist': x.get('artist') or '', 'album': x.get('album') or ''})
-                        break
+            standard = getattr(self, '_loaded_netmd', False)               # a standard disc keeps artist / album on this PC anyway
+            items = []
+            for t, x in self._pair_by_seconds(tracks, data[key].get('tracks', [])):
+                diff = (x.get('title') or '').strip().lower() != (t.get('title') or '').strip().lower()
+                if not standard:
+                    diff = diff or (x.get('artist') or '') != (t.get('artist') or '') or (x.get('album') or '') != (t.get('album') or '')
+                if diff and x.get('title'):
+                    items.append({'number': t['number'], 'title': x['title'], 'artist': x.get('artist') or '', 'album': x.get('album') or ''})
             return {'items': items}
         except Exception:
             return {'items': []}
@@ -203,10 +193,10 @@ class CatalogueMixin:
     def pending_names_clear(self):
         try:
             data = self._pending_read()
-            key = self._pending_find(data, self._tracks or [])
+            key = self._match_disc(data, self._tracks) if self._tracks else None
             if key is not None:
                 data.pop(key, None)
-                self._pending_write(data)
+                self._json_write(self.PENDING_FILE, data)
         except Exception:
             pass
         return {'ok': True}

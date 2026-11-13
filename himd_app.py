@@ -53,11 +53,12 @@ import himd_disc
 import himd_fs
 import licensing
 import sonos_cast
+import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
-APP_VERSION = '0.27.6'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
+APP_VERSION = '0.27.8'                        # shown in the window; installer\build_installer.ps1 reads it for the installer and zip names
 # Optional license-key check (Lemon Squeezy, see licensing.py). Switched off in every build: LICENSE_REQUIRED stays False.
 LICENSE_REQUIRED = False
 LS_STORE_ID = 0
@@ -133,7 +134,7 @@ except ImportError:
 
 
 class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.BackupMixin, edit_tracks.EditMixin, clone_disc.CloneMixin, convert_disc.ConvertMixin,netmd_disc.NetMdMixin, netmd_edit.NetMdEditMixin, disc_tools.DiscToolsMixin, cover_search.CoverSearchMixin, pc_audio.PcAudioMixin, save_pc.SavePcMixin, catalogue.CatalogueMixin, identify_tracks.IdentifyMixin, play_tracks.PlayMixin, copies.CopiesMixin, lyrics.LyricsMixin, groupart.GroupArtMixin, lyrics_asr.AsrMixin, disc_edit.DiscEditMixin, disc_lookup.DiscLookupMixin,
-          sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin):
+          sonos_cast.CastMixin, cd_audio.CdMixin, yoto_disc.YotoMixin, site_record.SiteRecordMixin, label_print.LabelMixin, video_links.VideoLinksMixin):
     def __init__(self):
         self._window = None
         self._devices = []
@@ -282,22 +283,32 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
                         self._ga_disc = self._ga_parse(fs.read_file('/GROUPART.JSN'))
                 except Exception:
                     self._ga_disc = {}
-                tracklist, has_list = 'unknown', False                # TRACKS.CSV in the root folder: is it there, and does it match the tracks?
+                tracklist, has_list, raw, listed = 'unknown', False, None, False      # TRACKS.CSV in the root folder: is it there, and does it match the tracks?
                 try:
                     ent = next((e for e in fs.listdir('/') if not e['dir'] and e['short'].upper() == 'TRACKS.CSV'), None)
                     has_list = ent is not None
-                    if ent:
-                        tracklist = 'current' if bytes(fs.read_file('/TRACKS.CSV')) == self._tracklist_bytes(tracks) else 'stale'
-                    else:
-                        tracklist = 'none' if tracks else 'current'
+                    raw = bytes(fs.read_file('/TRACKS.CSV')) if ent else None
+                    listed = True
                 except Exception:
                     pass
+                self._video_on_load(tracks, raw)                         # YouTube links: the PC's list plus those in the disc's track list; marks each track
+                if listed:
+                    tracklist = ('current' if raw == self._tracklist_bytes(tracks) else 'stale') if raw is not None else ('none' if tracks else 'current')
                 extras = {}                                            # sizes of the small files kept in the root folder: lyrics, picture, track list
                 try:
                     for e in fs.listdir('/'):
                         k = {'LYRICS.TXT': 'lyrics', 'COVER.JPG': 'cover', 'LABEL.JPG': 'label', 'TRACKS.CSV': 'list', 'GROUPART.JSN': 'groupart'}.get(e['short'].upper())
                         if k and not e['dir']:
                             extras[k] = e['size']
+                except Exception:
+                    pass
+                try:                                                   # video links live inside TRACKS.CSV: show their bytes as "Video", the rest as "Track list"
+                    if raw and 'list' in extras:
+                        import csv as _csv, io as _io
+                        vb = sum(len((r.get('Video') or '').strip().encode('utf-8')) + 1 for r in _csv.DictReader(_io.StringIO(bytes(raw).decode('utf-8-sig'))) if (r.get('Video') or '').strip())
+                        if vb:
+                            extras['video'] = vb
+                            extras['list'] = max(0, extras['list'] - vb)
                 except Exception:
                     pass
                 out['discState'] = 'ok'
@@ -342,6 +353,7 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
         self._netmd_details_apply(tracks)                                               # the artist and album this PC remembers (a standard disc cannot store them)
         self._tracks = tracks
         self._ly_on_load_netmd(tracks)
+        self._video_on_load(tracks)
         self._disc_key = None
         self._netmd_disc_title = d['discTitle'] or ''                                   # a standard disc has no artist / album fields: the TV shows this instead
         writable = d.get('writable')                                                     # the disc's "recordable" flag; a pre-recorded (pre-mastered) commercial disc lacks it

@@ -152,14 +152,9 @@ class CastMixin:
             import lyrics
             title, artist = lyrics._split_title(track)                              # "ARTIST - TITLE" titles of commercial discs: the artist is shown once
             vid = '%d' % int(time.time() * 1000)
-            deck = None                                                             # the deck's track number / time display on the TV picture
-            try:
-                nums = sorted(int(t.get('number')) for t in (self._tracks or []) if t.get('number') is not None)
-                if track.get('number') is not None and int(track['number']) in nums:
-                    deck = {'pos': nums.index(int(track['number'])) + 1, 'count': len(nums), 'length': float(track.get('seconds') or 0)}
-            except (TypeError, ValueError, AttributeError):
-                deck = None
-            job =lyricvideo.Job(os.path.join(HERE, 'runtime', 'ffmpeg.exe'), stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
+            num, tracks = track.get('number'), self._tracks or []                   # the deck's track number / time display on the TV picture
+            deck = {'pos': sum(1 for t in tracks if t['number'] <= num), 'count': len(tracks), 'length': float(track.get('seconds') or 0)} if num is not None and tracks else None
+            job = lyricvideo.Job(os.path.join(HERE, 'runtime', 'ffmpeg.exe'), stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
                                  title or 'Track', artist or '', lines, float(ly.get('offset') or 0), float(track.get('seconds') or 0),
                                  cover, self.log, growing=not stream.get('done'), caption=self._caption(), album=track.get('album') or '',
                                  viz=getattr(self, '_cast_viz', None), start=start, deck=deck)

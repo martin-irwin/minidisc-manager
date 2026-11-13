@@ -234,6 +234,8 @@
   tr:last-child td { border-bottom: 0; }
   tbody tr:hover { background: var(--panel-2); }
   td.idx { cursor: grab; }
+  .vid-btn { margin-left: 6px; padding: 1px 6px; font-size: 10px; font-weight: 800; letter-spacing: .04em; border-radius: 5px; border: 1px solid #e0463a; color: #ff6a5c; background: transparent; cursor: pointer; }
+  .vid-btn:hover { background: rgba(224, 70, 58, .18); }
   tr.dragging { opacity: .45; }
   tr.grp-hidden { display: none; }
   tr.grp-head td { background: var(--panel-2); padding: 6px 10px; border-top: 1px solid var(--line); }
@@ -427,7 +429,7 @@
   .notice { padding: 12px 14px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); font-size: 13px; margin: 10px 0; }
   .notice.warn { border-color: var(--warn); color: var(--text); }
   /* the write-protected / pre-recorded note: stands out from the quiet notes around it (tinted, thick edge, bigger title, a short glow that pulses a few times) */
-  #protectNote { border: 1px solid #ff7a3d; border-left: 6px solid #ff7a3d; background: color-mix(in srgb, #ff7a3d 16%, var(--panel-2)); color: var(--text); padding: 14px 16px; animation: protectPulse 1.4s ease-in-out 4; }
+  #protectNote { --protect: #ff7a3d; border: 1px solid var(--protect); border-left: 6px solid var(--protect); background: color-mix(in srgb, var(--protect) 16%, var(--panel-2)); color: var(--text); padding: 14px 16px; animation: protectPulse 1.4s ease-in-out 4; }
   #protectNote b { display: block; font-size: 17px; font-weight: 800; color: #ff9a5c; letter-spacing: .01em; }
   #protectNote .meta { color: var(--text); font-size: 13.5px; line-height: 1.45; }
   @keyframes protectPulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(255, 122, 61, 0); } 50% { box-shadow: 0 0 0 5px rgba(255, 122, 61, .45), 0 0 18px 2px rgba(255, 122, 61, .35); } }
@@ -543,8 +545,8 @@
           </div>
         </div>
       </section>
-      <section class="card untitled disc-card" data-card="disc">
-        <h2 class="card-title">Disc capacity</h2>
+      <section class="card disc-card" data-card="disc">
+        <h2 class="card-title">Disc Information</h2>
         <svg id="disc" viewBox="0 0 160 160" role="img" aria-label="Disc usage"></svg>
         <div id="coverBox" class="cover-box hidden">
           <img id="coverImg" class="hidden" alt="Disc image" title="The picture stored on this disc">
@@ -691,6 +693,11 @@
           <div class="eyebrow">Lyrics</div>
           <div class="tool-buttons"><button id="lyr" title="Find timed lyrics online (or load an .lrc file) for the tracks, keep them on a Hi-MD disc, and watch them in time with the track that is playing">Lyrics…</button></div>
           <div class="tool-text">Find lyrics online, keep them on the disc and read them in time with the music while a track plays. <a href="#" class="help-link" data-help="lyrics">ⓘ How it works…</a></div>
+        </div>
+<div class="tool-group g-video">
+          <div class="eyebrow">Video</div>
+          <div class="tool-buttons"><button id="vidFind" title="Tick one track to choose from the best matches, or several (all) to find a video for each automatically">Find YouTube videos…</button></div>
+          <div class="tool-text">Tick a track (or several, or all of them), find the best YouTube video and keep the link with the track: on this PC and, on a Hi-MD disc, in the track list stored on the disc. Tracks with a video show a small YT button. <a href="#" class="help-link" data-help="video">ⓘ How it works…</a></div>
         </div>
           </div>
           <div class="tool-col">
@@ -1081,6 +1088,7 @@ async function load(noSync) {
     if (ex.lyrics != null) sp.append(part('Lyrics', fmtSize(ex.lyrics)));
     if (ex.cover != null) sp.append(part('Image', fmtSize(ex.cover)));
     if (ex.label != null) sp.append(part('Label', fmtSize(ex.label)));
+    if (ex.video != null) sp.append(part('Video', fmtSize(ex.video)));
     if (ex.list != null) sp.append(part('Track list', fmtSize(ex.list)));
   }
   sp.classList.toggle('hidden', !sp.childNodes.length);
@@ -1100,6 +1108,7 @@ async function load(noSync) {
     if (t.groupIndex && collapsedGroups.has(d.key + ':' + t.groupIndex)) tr.classList.add('grp-hidden');
     const title = td(t.title); title.className = 'title' + (t.title === '(untitled)' ? ' untitled' : '') + (t.lyrics === 'sync' ? ' lyr-sync' : t.lyrics ? ' lyr-text' : '');
     const chip = document.createElement('td'); const c = document.createElement('span'); c.className = 'chip'; c.textContent = t.codec; chip.append(c);
+    if (t.video) chip.append(el('button', { className: 'vid-btn', textContent: 'YT', title: 'Play the YouTube video for this track in a small window you can move and resize', onclick: async () => { const r = await api().video_popup(t.video); if (r && r.popupError) toast('Pop-up window failed (' + r.popupError + '), opened in the browser instead.', true); } }));
     const artist = td(t.artist), album = td(t.album || ''), group = td(t.group);
     editable(title, t.title === '(untitled)' ? '' : t.title, v => api().rename_track(current, t.number, 'title', v));
     if (!netmd) editable(artist, t.artist, v => api().rename_track(current, t.number, 'artist', v));
@@ -1163,7 +1172,7 @@ function openSettings() {
     ['askLpToSp', 'Suggest converting LP tracks to SP', 'When a standard disc with LP2 / LP4 tracks is inserted, a note under the Recorder card says that players without LP support play them as silence and offers to rewrite them as SP. Switched off: no note; Convert LP2/4 Disc to SP stays in the Disc Conversion card.'],
     ['autoAlign', 'Fine-tune lyric timing automatically when lyrics are found', 'After lyrics are found, a speech recogniser listens to the start of each track and sets the lyric timing to match (a minute or more per track, and it needs the free speech helper). Off: lyrics are only found; use “Fine-tune timing…” on a track when you want it.'],
     ['fillArtist', 'Fill in a missing artist from the lyrics match', 'When lyrics are found and confidently matched for a track that has no artist, the artist the lyrics record names is filled in. A Hi-MD disc stores it on the disc (one change, which Undo can take back); a standard disc keeps it on this PC.'],
-    ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
+    ['askMissing', 'Ask about missing details when a disc is inserted', 'When a disc has tracks without an artist, album, picture or lyrics, or has no name, a window offers to look them up. Switched off: nothing is asked; use the Identify tools when you want them. (Discs you chose "Don’t ask again" for stay ignored.)'],
     ['askConvert', 'Suggest converting a standard disc to Hi-MD', 'When a standard (SP / LP) disc with audio is inserted in a recorder that also uses Hi-MD, a note under the Recorder card offers to convert it. Switched off: no note; Convert SP Disc to Hi-MD stays in the Disc Conversion card.'],
   ].map(([key, title, text]) => {
     const cb = el('input', { type: 'checkbox', checked: appSettings[key] !== false, onchange: async () => { const want = cb.checked; if (!(await appSettingSet(key, want))) cb.checked = !want; } });
@@ -1188,6 +1197,7 @@ function missingOf(d) {
     untitled: tracks.filter(t => t.title === '(untitled)').length,
     seconds: tracks.reduce((a, t) => a + (t.seconds || 0), 0),
     cover: netmd ? !d.pcCover : !d.cover,
+    discName: !d.title,                                              // the disc has no name
     lyrics: tracks.filter(t => !t.lyrics).map(t => t.number),
     all: tracks.map(t => t.number),
   };
@@ -1207,7 +1217,7 @@ function maybeAskMissing(d) {
   if (!appSettings.askMissing || lsRead(ASK_OFF_KEY, '0') === '1' || discsIgnored().includes(d.key)) return;
   if (d.commercial || $('modal').classList.contains('show') || (discPopup && discPopup.isConnected)) return;
   const m = missingOf(d);
-  if (!m.names.length && !m.cover && !m.lyrics.length) return;
+  if (!m.names.length && !m.cover && !m.lyrics.length && !m.discName) return;
   askedThisRun.add(d.key);
   const n = d.tracks.length, plural = (k, w) => k + ' ' + w + (k === 1 ? '' : 's');
   const rows = [];
@@ -1224,11 +1234,12 @@ function maybeAskMissing(d) {
       'None of the tracks has a title, so there is nothing to search by. The program can identify them from the audio (AcoustID): each track is read from the recorder once, which takes about ' + Math.max(1, Math.round(m.seconds / 60)) + ' minutes for this disc. Then it looks up the album, picture and lyrics. You can press Stop at any time.'));
   } else if (m.names.length) list.append(add('names', 'Titles, artists and albums', plural(m.names.length, 'track') + ' of ' + n + ' have no artist or album (or no title). Searches the album online by the track lengths.'));
   if (m.cover && !untitledAll) list.append(add('cover', 'Disc picture', netmd ? 'No album art is kept for this disc. Suggests covers from free online sources; kept on this PC only.' : 'No picture is stored on this disc. Suggests covers from free online sources; you choose whether to store one on the disc.'));
+  if (m.discName) list.append(add('discname', 'Disc name', 'The disc has no name. It is named after the album' + (netmd ? ' (“Artist - Album”, because a standard disc has no artist field)' : '') + ', from the tracks or from what the lookup above finds.'));
   if (m.lyrics.length && !untitledAll) list.append(add('lyrics', 'Lyrics', plural(m.lyrics.length, 'track') + ' of ' + n + ' have no lyrics. Searches online lyric services by artist and title.'));
   const never = el('input', { type: 'checkbox' }), thisDisc = el('input', { type: 'checkbox' });
   const opt = (cb, text) => el('label', { style: 'display:flex;gap:8px;align-items:center;cursor:pointer;font-size:13px;color:var(--muted)' }, cb, el('span', { textContent: text }));
   const remember = () => {
-    if (never.checked) { lsWrite(ASK_OFF_KEY, '1'); appSettingSet('askMissing', false); lsWrite(ASK_OFF_KEY, '1'); }
+    if (never.checked) { lsWrite(ASK_OFF_KEY, '1'); appSettingSet('askMissing', false); }
     else if (thisDisc.checked) { const a = discsIgnored().filter(k => k !== d.key); a.push(d.key); lsWrite(ASK_DISCS_KEY, JSON.stringify(a.slice(-300))); }
   };
   const run = auto => {
@@ -1236,13 +1247,14 @@ function maybeAskMissing(d) {
     let chosen = rows.filter(r => r.cb.checked).map(r => r.key);
     closeSheet();
     if (!chosen.length) return;
-    if (chosen.includes('listen')) chosen = ['listen', 'names', 'cover', 'lyrics'];      // once the tracks are named the rest can follow
+    if (chosen.includes('listen')) chosen = ['listen', 'names', 'cover', 'lyrics', ...(chosen.includes('discname') ? ['discname'] : [])];      // once the tracks are named the rest can follow
     if (auto) { runAutoIdentify(chosen, m); return; }
     idQueue = [];
     if (chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('listen', false); });
     if (chosen.includes('names') && !chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('album'); });
     if (chosen.includes('listen')) idQueue.push(() => { selected.clear(); m.all.forEach(x => selected.add(x)); updateDel(); openNaming('album'); });
     if (chosen.includes('cover')) idQueue.push(() => openCoverFinder());
+    if (chosen.includes('discname')) idQueue.push(async () => { const n = await nameDiscFromAlbum(null); toast('Disc name: ' + n.text, n.mark === '✗'); await load(true); });
     if (chosen.includes('lyrics')) idQueue.push(() => lyrFindAllRun(chosen.includes('listen') ? [...trackMap.keys()] : m.lyrics));
     nextIdStep();
   };
@@ -1256,6 +1268,22 @@ function maybeAskMissing(d) {
 }
 
 
+// The disc's name from the album: the album a lookup found (when given), else the one the tracks share. A standard disc has no artist field, so it is "Artist - Album".
+function artistOf(list) {                                               // the one artist of these tracks, "Various Artists" for several, '' for none
+  const a = [...new Set(list.map(x => (x || '').trim()).filter(Boolean))];
+  return a.length > 1 ? 'Various Artists' : (a[0] || '');
+}
+const discNameFor = (album, artist) => album ? (netmd && artist ? artist + ' - ' + album : album) : '';          // a standard disc has no artist field, so "Artist - Album"
+async function renameDisc(name) {
+  let r; try { r = await api().rename_disc(current, name); } catch (e) { r = { error: String(e) }; }
+  return r && r.error ? { mark: '✗', text: 'could not be named: ' + r.error } : { mark: '✓', text: 'named “' + name + '”' };
+}
+async function nameDiscFromAlbum(found) {
+  const tr = [...trackMap.values()];
+  const album = (found && found.album) || commonAlbum(tr.map(t => t.album));
+  if (!album) return { mark: '–', text: 'no album name is known for these tracks, so the disc was left unnamed' };
+  return renameDisc(discNameFor(album, (found && found.artist) || artistOf(tr.map(t => t.artist))));
+}
 // The automatic run: one movable window that shows each step as it happens (a spinner and the seconds so far), then the result of each.
 async function runAutoIdentify(chosen, m) {
   if (uploading) return;
@@ -1270,10 +1298,11 @@ async function runAutoIdentify(chosen, m) {
       done: (mark, text) => { clearInterval(timer); timer = 0; chip.textContent = mark; txt.textContent = label + ' – ' + text; },
     };
   };
-  const idSteps = chosen.filter(k => k !== 'lyrics');
+  const idSteps = chosen.filter(k => k !== 'lyrics' && k !== 'discname');
   if (chosen.includes('listen')) addLine('listen', 'Listening to the tracks');
   if (chosen.includes('names')) addLine('names', 'Titles, artists and albums');
   if (chosen.includes('cover')) addLine('cover', 'Disc picture');
+  if (chosen.includes('discname')) addLine('discname', 'Disc name');
   if (chosen.includes('lyrics')) addLine('lyrics', 'Lyrics');
   if (!netmd && (chosen.includes('lyrics') || keepOn())) addLine('disc', 'Saving on the disc');      // a Hi-MD disc keeps the lyrics file and the track list too
   const close = el('button', { textContent: 'Working…', disabled: true, onclick: closeSheet });
@@ -1399,6 +1428,11 @@ async function runAutoIdentify(chosen, m) {
       uploading = false;
     }
   }
+  if (chosen.includes('discname')) {                                 // the disc's name: the album found above, else the album the tracks already carry
+    setters.discname.busy('naming the disc…'); uploading = true;
+    const n = await nameDiscFromAlbum(found);
+    uploading = false; setters.discname.done(n.mark, n.text); await load(true);
+  }
   if (setters.disc) {                                                // Hi-MD: what was found is also kept on the disc itself
     uploading = true;
     const parts = [];
@@ -1420,6 +1454,109 @@ async function runAutoIdentify(chosen, m) {
   }
   idle();
   if (failed) toast(failed, true);
+}
+
+// ---- A YouTube video for a track (Disc Extras, Video) ------------------------------------------
+// The best matches are searched on YouTube (only the artist and title are sent), one is chosen (or a link pasted) and the link is kept with the track
+// on this PC; on a Hi-MD disc it can also be written into the track list stored on the disc (TRACKS.CSV, a "Video" column).
+$('vidFind').addEventListener('click', () => { if (selected.size > 1) openVideoAll([...selected].sort((a, b) => a - b)); else openVideo(); });
+async function openVideo(only) {                                       // one track: its ranked matches to choose from (only: that track, whatever is ticked)
+  if (uploading) return;
+  const nums = only ? [only] : [...selected];
+  if (nums.length !== 1) { toast('Tick the track (or tracks, or all of them) you want a video for, then press the button.', true); return; }
+  const n = nums[0], t = trackMap.get(n);
+  if (!t) return;
+  if (t.title === '(untitled)') { toast('Name this track first: the video is searched by its title.', true); return; }
+  const status = el('div', { className: 'notice' }, el('i', { className: 'spin-s' }), ' Searching YouTube for “' + [t.artist, t.title].filter(Boolean).join(' ') + '”…');
+  const list = el('div', { className: 'filelist' }), link = el('input', { placeholder: 'Or paste a YouTube link', style: 'flex:1;min-width:200px;padding:6px 8px;box-sizing:border-box' });
+  const onDisc = el('input', { type: 'checkbox', checked: true });
+  const discRow = netmd ? el('div', { className: 'notice', textContent: 'A standard disc cannot store files, so the link is kept on this PC only.' })
+    : el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, onDisc, el('span', { textContent: 'Also store the link on the disc (in its track list, TRACKS.CSV)' }));
+  const choose = async (url, vtitle) => {
+    const r = await api().video_save(n, url, vtitle || '');
+    if (r.error) { toast(r.error, true); return; }
+    let note = 'Video link kept on this PC.', warn = false;
+    if (!netmd && onDisc.checked) {
+      uploading = true;
+      try { const w = await api().tracklist_sync(current); if (w && w.error) { warn = true; note += ' It could not be written to the disc: ' + w.error; } else note = 'Video link kept on this PC and stored on the disc.'; }
+      catch (e) { warn = true; note += ' It could not be written to the disc.'; }
+      uploading = false;
+    }
+    closeSheet(); toast(note, warn, 6000); load(true);
+  };
+  const current_ = el('div', { className: 'notice hidden' });
+  if (t.video) {
+    current_.classList.remove('hidden');
+    current_.append(el('b', { textContent: 'Current video: ' }), el('span', { textContent: t.video }), ' ',
+      el('button', { textContent: 'Open', onclick: () => api().video_open(t.video) }), ' ',
+      el('button', { textContent: 'Remove', onclick: async () => { const r = await api().video_remove(n); if (r.error) { toast(r.error, true); return; } closeSheet(); toast('Video link removed from this PC' + (netmd ? '.' : '; the disc’s track list still has it until it is updated.')); load(true); } }));
+  }
+  openSheet(el('h2', { textContent: 'YouTube video for “' + t.title + '”' }),
+    el('div', { className: 'sub', textContent: 'Official videos come first, then the best matches by length, title and artist. Only the artist and title are sent to YouTube. Preview opens the video in your browser.' }),
+    current_, status, list, discRow,
+    el('div', { className: 'row', style: 'justify-content:flex-start;gap:8px;flex-wrap:wrap' }, link, el('button', { textContent: 'Use this link', onclick: () => choose(link.value.trim(), '') })),
+    el('div', { className: 'row' }, el('button', { textContent: 'Close', onclick: closeSheet })));
+  floatSheet(true);
+  let r; try { r = await api().video_search(n); } catch (e) { r = { error: String(e) }; }
+  if (!$('modal').classList.contains('show')) return;                       // closed while searching
+  status.remove();
+  if (r.error) { list.append(el('div', { className: 'notice warn', textContent: r.error })); return; }
+  if (!r.results.length) { list.append(el('div', { className: 'notice', textContent: 'YouTube found nothing for this track. Paste a link below instead.' })); return; }
+  r.results.forEach((c, i) => {
+    const gap = c.gap === null ? 'length unknown' : Math.abs(c.gap) <= 2 ? 'same length' : (c.gap > 0 ? '+' : '−') + Math.abs(c.gap) + ' s';
+    list.append(el('div', { className: 'file', style: 'grid-template-columns:auto 1fr auto;gap:10px;align-items:center' },
+      el('span', { className: 'chip', textContent: i === 0 ? 'Best' : '#' + (i + 1), style: i === 0 ? '' : 'opacity:.6' }),
+      el('span', {}, el('b', { textContent: c.title }), el('div', { className: 'meta', style: 'white-space:normal', textContent: (c.kind ? c.kind + ' · ' : '') + (c.still ? 'Still picture · ' : c.motion != null ? 'Moving video · ' : '') + c.channel + ' · ' + (c.seconds ? len(c.seconds) : '?') + ' · ' + gap + (c.views ? ' · ' + c.views.toLocaleString() + ' views' : '') })),
+      el('span', { style: 'display:flex;gap:6px' }, el('button', { textContent: 'Preview', onclick: () => api().video_open(c.url) }), el('button', { className: i === 0 ? 'primary' : '', textContent: 'Use this', onclick: () => choose(c.url, c.title) }))));
+  });
+}
+
+// Several ticked tracks: the best match for each is found one after the other; a confident match is kept at once, the rest can be reviewed one by one.
+async function openVideoAll(nums) {
+  if (uploading) return;
+  const tracks = nums.map(n => trackMap.get(n)).filter(t => t && t.title !== '(untitled)');
+  if (!tracks.length) { toast('The ticked tracks have no titles yet: name them first.', true); return; }
+  const onDisc = el('input', { type: 'checkbox', checked: true });
+  const discRow = netmd ? el('div', { className: 'notice', textContent: 'A standard disc cannot store files, so the links are kept on this PC only.' })
+    : el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, onDisc, el('span', { textContent: 'Also store the links on the disc (in its track list, TRACKS.CSV) when it is done' }));
+  const lines = new Map(), list = el('div', { className: 'filelist', style: 'max-height:340px;overflow:auto' });
+  for (const t of tracks) {
+    const chip = el('span', { className: 'chip', textContent: '·', style: 'min-width:22px;text-align:center' }), txt = el('span', { textContent: t.title }), act = el('span');
+    list.append(el('div', { className: 'file', style: 'grid-template-columns:auto 1fr auto;gap:10px;align-items:center' }, chip, txt, act));
+    lines.set(t.number, { chip, txt, act, title: t.title });
+  }
+  const run = el('button', { className: 'primary', textContent: 'Find the videos' }), close = el('button', { textContent: 'Cancel', onclick: closeSheet });
+  const prog = el('div', { className: 'sub', textContent: tracks.length + ' tracks. A match that fits the title, artist and length is kept automatically; the others are listed so you can choose. Only artist and title are sent to YouTube.' });
+  openSheet(el('h2', { textContent: 'Find YouTube videos' }), prog, discRow, list, el('div', { className: 'row' }, close, run));
+  floatSheet(true);
+  run.onclick = async () => {
+    run.disabled = true; close.textContent = 'Stop'; close.onclick = () => { close.disabled = true; api().video_cancel(); };
+    uploading = true;
+    window.onVideoProgress = e => {
+      const l = lines.get(e.number); if (!l) return;
+      prog.textContent = 'Track ' + (e.i + 1) + ' of ' + e.total + '…';
+      if (e.state === 'searching') { l.chip.textContent = ''; l.chip.append(el('i', { className: 'spin-s' })); }
+      else if (e.state === 'saved') { l.chip.textContent = '✓'; l.txt.textContent = l.title + ' — ' + e.text; }
+      else if (e.state === 'unsure') { l.chip.textContent = '?'; l.txt.textContent = l.title + ' — not sure (best: ' + e.text + ')'; }
+      else if (e.state === 'none') { l.chip.textContent = '–'; l.txt.textContent = l.title + ' — nothing found'; }
+      else { l.chip.textContent = '✗'; l.txt.textContent = l.title + ' — ' + e.text; }
+    };
+    let r; try { r = await api().video_find_all(tracks.map(t => t.number)); } catch (e) { r = { error: String(e) }; }
+    window.onVideoProgress = null; uploading = false;
+    close.disabled = false; close.textContent = 'Close'; close.onclick = closeSheet;
+    if (!r || r.error) { prog.textContent = (r && r.error) || 'The search failed.'; return; }
+    for (const u of r.unsure) {                                              // a button to review the ones that were not confident
+      const l = lines.get(u.number); if (l) l.act.append(el('button', { textContent: 'Choose…', onclick: () => { closeSheet(); openVideo(u.number); } }));
+    }
+    let msg = r.saved.length + ' of ' + tracks.length + ' tracks got a video (' + r.official + ' official ' + (r.official === 1 ? 'video' : 'videos') + ')' + (r.unsure.length ? '; ' + r.unsure.length + ' need your choice (press Choose…)' : '') + (r.stopped ? '. Stopped early.' : '.') + (r.failed ? ' ' + r.failed : '');
+    if (r.saved.length && !netmd && onDisc.checked) {
+      prog.textContent = 'Writing the links to the disc…'; uploading = true;
+      try { const w = await api().tracklist_sync(current); msg += w && w.error ? ' They could not be written to the disc: ' + w.error : ' The links are stored on the disc.'; } catch (e) { msg += ' They could not be written to the disc.'; }
+      uploading = false;
+    }
+    prog.textContent = msg; run.style.display = 'none';
+    load(true);
+  };
 }
 
 // ---- Playing tracks --------------------------------------------------------
@@ -2805,6 +2942,38 @@ const helpText = () => ({
       'Reading takes about as long as each track lasts; a track the app has already saved is used straight away.',
       'A standard disc cannot store an artist or album, so by default the artist is put in front of the title (“Artist - Title”). You can also tick a box to name the disc “Artist - Album”.',
       'A Hi-MD disc works in any Hi-MD recorder, including the MZ-NH700.',
+    ]],
+  ]],
+  video: ['Video', [
+    ['One track: choose the video yourself', [
+      'Tick one track and press “Find YouTube videos…”. The app searches YouTube for that song and lists the best matches, best first.',
+      '• Each result shows its kind (Official video, Official audio, Artist channel or Topic = audio only), its length, and whether it is a moving video or a still picture.',
+      '• “Preview” plays a result so you can check it; “Use this” keeps it for the track.',
+      '• Or paste a YouTube link of your own (youtube.com/watch… or youtu.be…) and keep that instead.',
+      '• “Remove” forgets the link again.',
+    ]],
+    ['Several tracks or the whole disc: automatic', [
+      'Tick several tracks (or all of them) and press the same button. The app searches for each track in turn, with a short pause between searches, and shows progress; “Stop” ends it.',
+      '• A confident match (the title and artist are in the video’s name and the length is close) is kept at once.',
+      '• Tracks without a confident match are listed with “Choose…”, which opens the single-track window for them.',
+      '• A summary at the end says how many official videos were found.',
+    ]],
+    ['How the best video is chosen', [
+      'Every result is given points:',
+      '• Official music videos from the artist’s own or VEVO channel score highest, then official audio, artist-channel uploads and “Topic” (audio only) uploads.',
+      '• A length close to the disc track’s length scores well (an official video may differ by up to a minute, because videos often have intros).',
+      '• The title and artist must match. Spelling differences such as “B-52’s” and “B-52s” are ignored.',
+      '• Live versions, covers, remixes and fan-made “with lyrics” videos lose points.',
+      '• The app looks at a few preview frames of the best results: a video whose picture never changes (a still image with sound) loses points, so a moving video is preferred.',
+    ]],
+    ['Where the links are kept', [
+      '• On this PC, remembered by title, artist and length (like lyrics), so they come back whenever that disc is loaded.',
+      '• On a Hi-MD disc you can also tick “also store on the disc”: the links are then written into the track list file, TRACKS.CSV, in a “Video” column, and come with the disc to another PC. The disc’s file table is backed up and checked, as for lyrics.',
+      '• A standard (SP / LP) disc cannot hold files, so its links stay on this PC.',
+    ]],
+    ['Watching a video', [
+      'A track with a link shows a small red YT button in its Codec cell. It opens the video in a window of its own that you can move and resize. The disc is not touched.',
+      'Only the artist, title and length of a track are used to search YouTube, never the audio. The search reads YouTube’s public results page, so if YouTube changes it and the search finds nothing, paste a link by hand.',
     ]],
   ]],
   lyrics: ['Lyrics', [
@@ -4228,11 +4397,11 @@ function protectNoteRefresh(d) {
   const box = $('protectNote'), show = !!(d && (d.commercial || d.writeProtected));
   box.classList.toggle('hidden', !show);
   if (!show) return;
-  $('protectNoteTitle').textContent = d.commercial ? '🔒 This is a pre-recorded disc' : '🔒 This disc is write-protected';
-  $('protectNoteText').textContent = d.commercial
-    ? 'Pre-recorded discs cannot be changed, so nothing on it can be edited, converted or erased. You can still play it, look up its details and save its tracks to this PC.'
-    : 'The small tab on the corner of the cartridge is slid open (you can see through its little window), so the recorder will not change anything on the disc. ' +
-      'To edit, convert or add tracks: slide the tab closed, put the disc back in and press rescan. Playing the disc still works as normal.';
+  const [title, text] = d.commercial
+    ? ['🔒 This is a pre-recorded disc', 'Pre-recorded discs cannot be changed, so nothing on it can be edited, converted or erased. You can still play it, look up its details and save its tracks to this PC.']
+    : ['🔒 This disc is write-protected', 'The small tab on the corner of the cartridge is slid open (you can see through its little window), so the recorder will not change anything on the disc. ' +
+      'To edit, convert or add tracks: slide the tab closed, put the disc back in and press rescan. Playing the disc still works as normal.'];
+  $('protectNoteTitle').textContent = title; $('protectNoteText').textContent = text;
 }
 // Names the app found while the disc was write-protected (identify, lyrics, Apply names) are kept on this PC; when the same disc is loaded and can be written
 // to, this note offers to put them on it.
@@ -4924,7 +5093,18 @@ async function startAdd(paths) {
   const artistBox = el('input', { type: 'checkbox', checked: artistFirst, onchange: () => { try { localStorage.setItem('mdArtistInTitle', artistBox.checked ? '1' : '0'); } catch (e) { /* no storage */ } } });
   const artistRow = p.netmd ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, artistBox,
     el('span', { textContent: 'Put the artist in front of each title (“Artist - Title”), because a standard disc cannot store an artist. Uses up more of the disc’s limited title space.' })) : '';
-  go.onclick = () => runUpload(picked(), chosen, kbps, gc && gc.get(), p.netmd && artistBox.checked);
+  // Naming the disc after the album: offered when the files share one album (ticked when the disc has no name yet). A standard disc gets "Artist - Album".
+  const albumOf = commonAlbum(good.map(f => f.album));
+  const wantedName = discNameFor(albumOf, artistOf(good.map(f => f.artist)));
+  const nameBox = el('input', { type: 'checkbox', checked: !curDisc || !curDisc.title });
+  const nameRow = wantedName ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, nameBox,
+    el('span', { textContent: (curDisc && curDisc.title ? 'Rename the disc to “' + wantedName + '” (it is called “' + curDisc.title + '” now)' : 'Name the disc “' + wantedName + '”') + ', the album of these files' })) : '';
+  // The album art too: searched for online after the tracks are written (needs the files to share an album); ticked when the disc has no picture yet.
+  const hasPic = !!(curDisc && (curDisc.cover || curDisc.pcCover));
+  const artBox = el('input', { type: 'checkbox', checked: !hasPic });
+  const artRow = albumOf ? el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer', title: 'Looks the album up on MusicBrainz and Discogs (only an album that matches most of the tracks is used)' }, artBox,
+    el('span', { textContent: 'Look up the album art online (MusicBrainz, Discogs) and ' + (p.netmd ? 'keep it on this PC' : 'store it as the disc picture') + (hasPic ? ' (replaces the current picture)' : '') })) : '';
+  go.onclick = () => runUpload(picked(), chosen, kbps, { group: gc && gc.get(), artistInTitle: p.netmd && artistBox.checked, discTitle: wantedName && nameBox.checked ? wantedName : '', wantArt: albumOf && artBox.checked });
   const parts = [el('h2', { textContent: 'Add to disc' }), el('div', { className: 'sub', textContent: 'Edit the titles if you like, and untick any file you do not want to add. Nothing has been written yet.' }), list];
   {
     const names = p.netmd
@@ -4945,10 +5125,10 @@ async function startAdd(paths) {
     if (!p.netmd) pick.append(el('div', { className: 'sub', textContent: 'The ATRAC3+ options are encoded on this PC (this takes about a minute for a three-minute track). They are new: try one short track on your recorder before adding a lot.' }));
     parts.push(pick);
   }
-  parts.push(...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
+  parts.push(...(nameRow ? [nameRow] : []), ...(artRow ? [artRow] : []), ...(gc ? [gc.row] : []), ...(artistRow ? [artistRow] : []), info, warn, fitBtn, noteEl, el('div', { className: 'row' }, el('button', { textContent: 'Cancel', onclick: closeSheet }), go));
   refresh();
   openFloat(...parts);
-}async function runUpload(rows, format, kbps, group, artistInTitle) {
+}async function runUpload(rows, format, kbps, { group, artistInTitle, discTitle, wantArt } = {}) {
   uploading = true; stopPlayer();
   const prog = liveProgress('Starting…', 6, true);
   openFloat(el('h2', { textContent: 'Writing to the disc' }), prog.what, prog.bar, prog.stallBox,
@@ -4974,7 +5154,26 @@ async function startAdd(paths) {
     return;
   }
   const gn = await groupNew(before, commonAlbum(rows.map(x => x.f.album)), group);
-  closeSheet(); toast('Added ' + r.result.added + (r.result.added === 1 ? ' track' : ' tracks') + (gn ? '. ' + gn.text : ''), !!(gn && gn.warn), gn ? 7000 : 0); scan();
+  let named = '', art = '', nameWarn = false;
+  if (discTitle || wantArt) {
+    uploading = true;
+    try {
+      if (discTitle) {                                                          // name the disc after the files' album (the tick box in the Add window)
+        const n = await renameDisc(discTitle);
+        nameWarn = n.mark === '✗'; named = ' The disc ' + (nameWarn ? n.text : 'is now called “' + discTitle + '”') + '.';
+      }
+      if (wantArt) {                                                            // the album art, found online like the "missing details" window does (MusicBrainz, then Discogs)
+        openFloat(el('h2', { textContent: 'Looking for the album art…' }), el('div', { className: 'notice', textContent: 'Searching MusicBrainz and Discogs for this album. Do not unplug the recorder.' }));
+        try {
+          await load();                                                         // the app needs the new track list to match the album
+          const a = await api().auto_identify(current, ['cover'], discTitle || (curDisc && curDisc.title) || '');
+          art = a.error ? ' Album art: ' + a.error : !a.found ? ' No matching album was found online, so no album art.' : /^(failed|none)/.test(a.cover || '') ? ' Album art: ' + (a.cover || 'not stored') + '.'
+            : ' Album art found (“' + a.album + '”) and ' + (netmd ? 'kept on this PC.' : 'stored on the disc.');
+        } catch (e) { art = ' The album art lookup failed.'; }
+      }
+    } finally { uploading = false; }
+  }
+  closeSheet(); toast('Added ' + r.result.added + (r.result.added === 1 ? ' track' : ' tracks') + (gn ? '. ' + gn.text : '.') + named + art, !!(gn && gn.warn) || nameWarn, gn || named || art ? 8000 : 0); scan();
 }
 
 // ---- Ripping an audio CD to the disc ---------------------------------------------------------
@@ -6043,7 +6242,7 @@ function makeTabs(cardId, classes, remember, names) {                 // names: 
 }
 makeTabs('recordCard', ['g-add', 'g-label'], 'mdm.tab.record', { 'g-add': 'Add tracks', 'g-label': 'Disc labelling' });
 makeTabs('mgmtCard', ['g-arrange', 'g-fade', 'g-groups', 'g-autosplit', 'g-clone', 'g-remove', 'g-format'], 'mdm.tab.mgmt');
-makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-check', 'g-tracks', 'g-copyout'], 'mdm.tab.extras');
+makeTabs('extrasCard', ['g-identify', 'g-lyrics', 'g-video', 'g-check', 'g-tracks', 'g-copyout'], 'mdm.tab.extras');
 
 // ---- Collapsible cards: click a card title to fold the card down to just its title (remembered per card) ------------------
 document.querySelectorAll('section.card').forEach((card, i) => {
@@ -6063,7 +6262,7 @@ document.querySelectorAll('section.card').forEach((card, i) => {
 // (CARD_W) and from how many cells share its row, so a card that is moved is resized to suit its new place (its content follows its width).
 // Drag a card by the ⠿ at the end of its title: drop on the left / right edge of another card for a new column beside it, on its top / bottom half
 // to stack it above / below, or on the line between two rows (or above / below them all) for a row of its own. Kept in localStorage (mdm.layout).
-const CARD_NAMES = { viz: 'Visualiser', deck: 'Track time', disc: 'Disc capacity', record: 'Recording', lyrics: 'Lyrics', mgmt: 'Disc Management', convert: 'Disc Conversion', extras: 'Disc Extras', rec: 'Recorder', tracks: 'Tracks' };
+const CARD_NAMES = { viz: 'Visualiser', deck: 'Track time', disc: 'Disc Information', record: 'Recording', lyrics: 'Lyrics', mgmt: 'Disc Management', convert: 'Disc Conversion', extras: 'Disc Extras', rec: 'Recorder', tracks: 'Tracks' };
 const CARD_W = { viz: 1.2, deck: 1.2, disc: 1.2, record: 1, lyrics: 1, mgmt: 1.3, convert: 1.3, extras: 1.3, rec: .8, tracks: 1 };
 const LAYOUT_KEY = 'mdm.layout';
 const defaultLayout = () => ({ rows: [[['viz', 'deck', 'disc'], ['record', 'lyrics'], ['mgmt', 'convert', 'extras'], ['rec']], [['tracks']]], hidden: [] });

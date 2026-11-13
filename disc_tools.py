@@ -253,9 +253,10 @@ class DiscToolsMixin:
         """The CSV text for a track list; the same bytes every time for the same tracks, so a file on the disc can be compared with it."""
         buf = io.StringIO()
         w = csv.writer(buf, lineterminator='\r\n')
-        w.writerow(['#', 'Title', 'Artist', 'Album', 'Group', 'Codec', 'kbps', 'Length (s)'])
+        videos = any(t.get('video') for t in tracks)                      # a "Video" column (a YouTube link) only when a track has one
+        w.writerow(['#', 'Title', 'Artist', 'Album', 'Group', 'Codec', 'kbps', 'Length (s)'] + (['Video'] if videos else []))
         for t in tracks:
-            w.writerow([t['number'], t['title'], t['artist'], t['album'], t['group'], t['codec'], t['kbps'] or '', t['seconds']])
+            w.writerow([t['number'], t['title'], t['artist'], t['album'], t['group'], t['codec'], t['kbps'] or '', t['seconds']] + ([t.get('video') or ''] if videos else []))
         return buf.getvalue().encode('utf-8-sig')
 
     def tracklist_sync(self, index):

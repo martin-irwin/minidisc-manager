@@ -21,6 +21,8 @@ FONT = 'Segoe UI'                                       # ships with Windows (C:
 FONTS_DIR = 'C\\:/Windows/Fonts'                        # as an ffmpeg filter option: the drive colon is escaped
 BG = '0x12161c'
 TOP = 54                                                # top of the cover / visualizer: level with the top of the heading's letters
+COVER = 400                                             # the cover's size (a square)
+BOTTOM = 680                                            # the bottom edge of the visualizer and the deck panel
 DIM, BRIGHT, ACCENT = '&H8F8F8F&', '&HFFFFFF&', '&H3CB4FF&'          # ASS colours are BGR
 LYRIC = '&HFFD9A6&'                                                  # the lyric being sung: light blue, apart from the white track title
 
@@ -38,6 +40,7 @@ def _esc(text):
 def make_ass(title, artist, lines, offset, duration, has_cover, caption='', album='', compact=False):
     """ASS subtitle text. lines: [(seconds, text)] (timed lyrics) or []. offset: the lyric timing correction kept by the app."""
     x0 = 520 if has_cover else 110
+    ahead = 2 if compact else 3                          # how many coming lyric lines show under the one being sung (compact: the deck panel sits below)
     head = ['[Script Info]', 'ScriptType: v4.00+', 'PlayResX: %d' % W, 'PlayResY: %d' % H, 'WrapStyle: 0', 'ScaledBorderAndShadow: yes', '',
             '[V4+ Styles]',
             'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, '
@@ -67,11 +70,11 @@ def make_ass(title, artist, lines, offset, duration, has_cover, caption='', albu
         if i > 0:
             block.append('{\\fs34\\b0\\c%s}%s' % (DIM, texts[i - 1]))
         block.append('{\\fs50\\b1\\c%s}%s' % (LYRIC, texts[i]))
-        for j in range(i + 1, min(i + (3 if compact else 4), len(lines))):             # compact: one line fewer, the deck panel sits below
+        for j in range(i + 1, min(i + 1 + ahead, len(lines))):
             block.append('{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]))
         ev.append('Dialogue: 1,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)}%s' % (_ts(start), _ts(end), x0, ly, '\\N\\N'.join(block)))
     if lines and lines[0][0] + offset > 1:               # before the first line: show what is coming
-        pre = ['{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]) for j in range(min(2 if compact else 3, len(lines)))]
+        pre = ['{\\fs34\\b0\\c%s}%s' % (DIM, texts[j]) for j in range(min(ahead, len(lines)))]
         ev.append('Dialogue: 1,%s,%s,Default,,0,0,0,,{\\an7\\pos(%d,%d)}%s' % (_ts(0), _ts(lines[0][0] + offset), x0, ly, '\\N\\N'.join(pre)))
     return '\n'.join(head + ev) + '\n'
 
@@ -180,14 +183,13 @@ class Job:
         py_deck = bool(deck) and vizrender.OK                # the deck's track number / time display, drawn in Python at the bottom right
         py_viz = on and vizrender.OK
         piped = py_viz or py_deck                           # either one comes through stdin as one raw picture
-        cov = 400
         # The cover's top is level with the top of the heading on the right (TOP); the visualizer sits under it at the bottom and the deck panel
         # on the right has the same top and height, so the two line up.
-        vgeom = ((60, 490, 400, 190) if tall else (60, 584, 400, 96)) if cover_bytes else (60, TOP, 400, 400)
+        vgeom = ((60, BOTTOM - 190, 400, 190) if tall else (60, BOTTOM - 96, 400, 96)) if cover_bytes else (60, TOP, 400, 400)
         vf = None if py_viz else viz_filter(viz, vgeom[2], vgeom[3])
         # The one picture is the box around the parts shown: x0, y0, width, height.
         dh = vgeom[3] if (py_viz and cover_bytes) else 96
-        dgeom = (520, 680 - dh if not (py_viz and cover_bytes) else vgeom[1], vizrender.DECK_W, dh) if py_deck else None
+        dgeom = (520, BOTTOM - dh, vizrender.DECK_W, dh) if py_deck else None
         parts = ([vgeom] if py_viz else []) + ([dgeom] if py_deck else [])
         box = None
         if parts:
@@ -208,7 +210,7 @@ class Job:
             with open(os.path.join(out_dir, 'cover.img'), 'wb') as f:
                 f.write(cover_bytes)
             cmd += ['-loop', '1', '-framerate', str(FPS), '-i', 'cover.img']
-            graph = '[2:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[1:v][c]overlay=%d:%d:shortest=1[b]' % (cov, cov, 60, TOP)
+            graph = '[2:v]scale=%d:%d:force_original_aspect_ratio=decrease[c];[1:v][c]overlay=%d:%d:shortest=1[b]' % (COVER, COVER, 60, TOP)
         else:
             graph = '[1:v]null[b]'
         if piped:                                           # the pictures come through stdin as raw RGB frames, made from a second decoding of the same audio
@@ -228,11 +230,10 @@ class Job:
         if piped:
             try:
                 if py_deck:
-                    dk = dict(deck, start=start)
                     colour = str((viz or {}).get('color') or 'accent')
                     accent = vizrender._hex((viz or {}).get('accent') or '#7aa2ff')
                     pic = vizrender.Composite(box[2], box[3], vizrender.painter_for(viz, vgeom[2], vgeom[3]) if py_viz else None, (vgeom[0] - box[0], vgeom[1] - box[1]),
-                                              vizrender.DeckPainter(dk, colour, accent, dgeom[3]), (dgeom[0] - box[0], dgeom[1] - box[1]), start)
+                                              vizrender.DeckPainter(deck, colour, accent, dgeom[3]), (dgeom[0] - box[0], dgeom[1] - box[1]), start)
                 else:
                     pic = vizrender.painter_for(viz, vgeom[2], vgeom[3])
                 self.feeder = vizrender.Feeder(ffmpeg, src, pic, self.proc.stdin, flags)

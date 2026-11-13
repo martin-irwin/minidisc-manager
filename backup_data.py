@@ -14,7 +14,7 @@ from mdm_paths import BACKUP_DIR, USER_DIR
 
 APP_TAG = 'MiniDiscManager-backup'
 # the only files a backup holds (and the only ones a restore will write, by exactly these names)
-DATA_FILES = ('lyrics.json', 'catalogue.json', 'netmd-details.json', 'pending-names.json', 'radio-favourites.json', 'hiprint.json', 'hiprint_film.json', 'sprocket.json', 'acoustid-key.txt', 'app-settings.json')
+DATA_FILES = ('lyrics.json', 'catalogue.json', 'netmd-details.json', 'pending-names.json', 'videos.json', 'radio-favourites.json', 'hiprint.json', 'hiprint_film.json', 'sprocket.json', 'acoustid-key.txt', 'app-settings.json')
 MAX_ZIP_ENTRY = 50 * 1000 * 1000
 
 

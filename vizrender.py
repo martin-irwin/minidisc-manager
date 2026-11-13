@@ -533,7 +533,7 @@ SEG_ON = {'0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5'
 SEG_P = {'a': '2,1 12,1 10,3.6 4,3.6', 'b': '13,1.8 13,11.4 10.6,10.2 10.6,4.2', 'c': '13,12.6 13,22.2 10.6,19.8 10.6,13.8', 'd': '2,23 12,23 10,20.4 4,20.4',
          'e': '1,12.6 3.4,13.8 3.4,19.8 1,22.2', 'f': '1,1.8 3.4,4.2 3.4,10.2 1,11.4', 'g': '2.2,12 4.2,9.7 9.8,9.7 11.8,12 9.8,14.3 4.2,14.3'}
 SEG_POLY = {k: [tuple(float(v) for v in p.split(',')) for p in s.split()] for k, s in SEG_P.items()} if OK else {}
-DECK_W, DECK_H = 700, 72
+DECK_W, DECK_READ_H = 700, 72                                   # the panel's width; the height of the readings inside it (the panel itself may be taller)
 
 
 def _clock(sec):
@@ -542,11 +542,12 @@ def _clock(sec):
 
 
 class DeckPainter:
-    """info: {'pos': track's place on the disc (1..), 'count': tracks on the disc, 'length': seconds, 'start': seconds the stream begins at}."""
+    """info: {'pos': track's place on the disc (1..), 'count': tracks on the disc, 'length': seconds}; height: the panel's height."""
 
-    def __init__(self, info, colour, accent, height=DECK_H):
+    def __init__(self, info, colour, accent, height):
         self.info, self.h = info, int(height)
         self.ink = _hex(DECK_INK.get(colour)) if colour in DECK_INK else accent
+        self.unlit = _mix(self.ink, 0.09, (10, 13, 17))                  # an unlit segment: faintly visible, like a real display
         self.key, self.img = None, None
 
     def _digits(self, d, text, x, y, h, k):
@@ -562,12 +563,12 @@ class DeckPainter:
             lit = SEG_ON.get(ch, '')
             if ch in SEG_ON:
                 for seg, pts in SEG_POLY.items():
-                    d.polygon([(x + px * sc, y + py * sc) for px, py in pts], fill=self.ink if seg in lit else _mix(self.ink, 0.09, (10, 13, 17)))
+                    d.polygon([(x + px * sc, y + py * sc) for px, py in pts], fill=self.ink if seg in lit else self.unlit)
             x += 14 * sc + 2 * k
         return x
 
     def image(self, t):
-        """The panel (RGB, DECK_W x DECK_H) for t seconds into the track; redrawn only when the shown second changes."""
+        """The panel (RGB, DECK_W wide, the panel's height) for t seconds into the track; redrawn only when the shown second changes."""
         el = int(max(0.0, t))
         if el == self.key:
             return self.img
@@ -577,7 +578,7 @@ class DeckPainter:
         img = Image.new('RGB', (DECK_W * k, self.h * k), BG)
         d = ImageDraw.Draw(img)
         d.rounded_rectangle([0, 0, DECK_W * k - 1, self.h * k - 1], radius=12 * k, fill=(10, 13, 17), outline=(46, 52, 62), width=k)
-        oy = (self.h - DECK_H) * k // 2                                    # the readings sit in the middle of the panel when it is taller than they are
+        oy = (self.h - DECK_READ_H) * k // 2                                    # the readings sit in the middle of the panel when it is taller than they are
         cell = (DECK_W - 24) / 4.0
         cells = [('TRACK', '%02d' % inf.get('pos', 1)), ('ELAPSED', _clock(el)), ('REMAINING', '-' + _clock(length - el) if length else '--:--'),
                  ('TRACK LENGTH', _clock(length) if length else '--:--')]
@@ -594,19 +595,28 @@ class DeckPainter:
 
 class Composite:
     """Stands in for a Painter when the TV picture also carries the deck display: one frame (w x h) holding the visualizer and / or the deck panel at
-    their places (viz_at / deck_at, inside the frame); the rest is the lyric video's background colour, so the lyrics drawn over it show as usual."""
+    their places (viz_at / deck_at, inside the frame); the rest is the lyric video's background colour, so the lyrics drawn over it show as usual.
+    The frame is kept between pictures: the visualizer rewrites its own corner each time, the deck panel is pasted only when it changes (once a
+    second), and with no visualizer the same bytes are sent again until then (the audio is not even decoded: needs_audio)."""
 
     def __init__(self, w, h, painter, viz_at, deck, deck_at, start=0.0):
-        self.w, self.h, self.painter, self.viz_at, self.deck, self.deck_at, self.start, self.n = w, h, painter, viz_at, deck, deck_at, start, 0
+        self.painter, self.viz_at, self.deck, self.deck_at, self.start, self.n = painter, viz_at, deck, deck_at, start, 0
+        self.needs_audio = painter is not None
+        self.base, self.shown, self.bytes = Image.new('RGB', (w, h), BG), None, None
 
     def frame(self, l, r):
-        base = Image.new('RGB', (self.w, self.h), BG)
         if self.painter:
-            base.paste(Image.frombytes('RGB', (self.painter.w1, self.painter.h1), self.painter.frame(l, r)), self.viz_at)
+            self.base.paste(Image.frombytes('RGB', (self.painter.w1, self.painter.h1), self.painter.frame(l, r)), self.viz_at)
+        changed = self.bytes is None or bool(self.painter)
         if self.deck:
-            base.paste(self.deck.image(self.start + self.n / float(FPS)), self.deck_at)
+            img = self.deck.image(self.start + self.n / float(FPS))
+            if img is not self.shown:
+                self.base.paste(img, self.deck_at)
+                self.shown, changed = img, True
         self.n += 1
-        return base.tobytes()
+        if changed:
+            self.bytes = self.base.tobytes()
+        return self.bytes
 
 
 # ---------------------------------------------------------------------- the feeder
@@ -628,6 +638,10 @@ class Feeder(threading.Thread):
     def run(self):
         need = HOP * 2 * 4
         try:
+            if not getattr(self.painter, 'needs_audio', True):          # a picture that does not follow the sound (the deck panel alone): no second decoding
+                while not self.stopped:
+                    self.sink.write(self.painter.frame(None, None))      # the video job ends with the audio and closes the pipe, which ends this loop
+                return
             self.proc = subprocess.Popen(self.cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, creationflags=self.flags)
             while not self.stopped:
                 buf = self.proc.stdout.read(need)
