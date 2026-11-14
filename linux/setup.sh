@@ -43,8 +43,7 @@ have ffmpeg  || missing+=(ffmpeg)
 have patch   || missing+=(patch)
 if [ "$DO_AT3P" = 1 ]; then
     have git   || missing+=(git)
-    have cmake || missing+=(cmake)
-    have c++   || missing+=(c++)
+    have c++   || missing+=(c++)                     # cmake is optional: without it, step 5 takes one from PyPI into .venv
     have pkg-config && pkg-config --exists sndfile || missing+=(libsndfile)
 fi
 gui_ok=1
@@ -113,9 +112,15 @@ if [ "$DO_AT3P" = 1 ]; then
         git clone --quiet --depth 1 --branch 0.2.3 --recurse-submodules --shallow-submodules \
             https://github.com/dcherednik/atracdenc "$work/atracdenc"
         patch -d "$work/atracdenc" -p1 --silent < "$LINUX/patches/atracdenc-0.2.3-framesize.patch"
+        CMAKE="$(command -v cmake || true)"
+        if [ -z "$CMAKE" ]; then                     # no system cmake (or the package mirror failed): the PyPI build, into .venv only
+            echo "    no cmake on this system; getting one from PyPI into .venv"
+            "$ROOT/.venv/bin/python" -m pip install --quiet cmake
+            CMAKE="$ROOT/.venv/bin/cmake"
+        fi
         log="$work/build.log"
-        { cmake -S "$work/atracdenc/src" -B "$work/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-include cstdint" &&
-          cmake --build "$work/build" --parallel "$(nproc 2>/dev/null || echo 2)"; } >"$log" 2>&1 ||
+        { "$CMAKE" -S "$work/atracdenc/src" -B "$work/build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-include cstdint" &&
+          "$CMAKE" --build "$work/build" --parallel "$(nproc 2>/dev/null || echo 2)"; } >"$log" 2>&1 ||
             { tail -30 "$log"; die "The Hi-SP / Hi-LP encoder did not build (log above). Run again with --no-atrac3plus to skip it."; }
         mkdir -p "$RT/atracdenc3p"
         install -m 755 "$work/build/atracdenc" "$RT/atracdenc3p/atracdenc"

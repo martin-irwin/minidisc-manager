@@ -16,7 +16,7 @@ MiniDisc Manager is written by Vinny Powell for Windows. These files let it run 
    ```sh
    sudo apt install python3 python3-venv python3-gi gir1.2-webkit2-4.1 nodejs npm ffmpeg patch git cmake g++ libsndfile1-dev pkg-config
    ```
-   Node 18 or newer is needed. `cmake`, the compiler and `libsndfile` are only used to build the Hi-SP / Hi-LP encoder.
+   Node 18 or newer is needed. `cmake`, the compiler and `libsndfile` are only used to build the Hi-SP / Hi-LP encoder. If cmake can't be installed (for example a package-mirror error), setup.sh fetches cmake from PyPI into `.venv` instead.
 
 2. Clone the repository and run the setup script. It asks for your password once, for the USB step.
    ```sh
