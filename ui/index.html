@@ -482,7 +482,8 @@
   :where(html.linux) select { color: var(--text); background-color: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
   /* Omarchy theme (Linux): the colours come from the desktop's theme (omarchyApply, in the first script); here its font and a
      sharper, HUD-like shape. Primary buttons get dark text, since the desktop's accents are often bright. */
-  .linux-only { display: none; }  html.linux .linux-only { display: inline; }      /* shown only on Linux (WebKitGTK) */
+  .linux-only { display: none; }  html.linux .linux-only { display: inline; }
+  html.linux .sugg-flag { animation-iteration-count: 3; }      /* Linux: pulse three times, not for ever (each pulse is a repaint) */      /* shown only on Linux (WebKitGTK) */
   :root[data-theme="omarchy"] body { font-family: var(--omarchy-font, "Segoe UI"), "Segoe UI", system-ui, sans-serif; }
   :root[data-theme="omarchy"] *:not(.dot) { border-radius: 2px !important; }
   :root[data-theme="omarchy"] button.primary { color: var(--accent-ink); text-shadow: none; }
@@ -7447,7 +7448,12 @@ function lyrTick() {
   const r = lyr.rows[Math.max(i, 0)], box = $('lyrLines');
   if (r) $('lyrTrack').style.transform = 'translateY(' + Math.min(0, Math.round(box.clientHeight / 2 - (r.offsetTop + r.offsetHeight / 2))) + 'px)';      // the current line goes to the middle (the first ones stay at the top)
 }
-function lyrFrame() { if (nowNum !== lyr.num) lyrLoad(nowNum); lyrTick(); requestAnimationFrame(lyrFrame); }           // every frame: a line changes the moment its time comes. A new track (or none) is noticed here too.
+function lyrFrame() {
+  if (nowNum !== lyr.num) lyrLoad(nowNum); lyrTick();
+  // Linux (WebKitGTK, often drawn without a GPU): asking for every frame keeps the page redrawing, so with nothing playing it
+  // looks 4 times a second instead. While a track plays it is every frame, as on Windows.
+  if (IS_LINUX && (!nowNum || (audio.paused && !playingRemote))) setTimeout(lyrFrame, 250); else requestAnimationFrame(lyrFrame);
+}           // every frame: a line changes the moment its time comes. A new track (or none) is noticed here too.
 requestAnimationFrame(lyrFrame);
 $('lyrBtn').addEventListener('click', () => {
   const t = trackMap.get(nowNum);
