@@ -55,7 +55,7 @@ import licensing
 import sonos_cast
 import video_links
 from mdm_common import UNITS_PER_SECOND
-from mdm_platform import IS_LINUX, data_root, open_path
+from mdm_platform import IS_LINUX, data_root, omarchy_theme, open_path
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
@@ -460,6 +460,12 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
         """Scales the whole window like a browser page (Shift and + / -). 1.0 is normal size."""
         try:
             factor = max(0.5, min(3.0, float(factor)))
+            if IS_LINUX:                                   # WebKitGTK: the page's zoom level, set on the GTK thread
+                from gi.repository import GLib
+                from webview.platforms.gtk import BrowserView
+                view = BrowserView.instances[self._window.uid].webview
+                GLib.idle_add(lambda: view.set_zoom_level(factor) and False)
+                return {'zoom': factor}
             wv = self._window.native.webview               # the WebView2 control; its zoom must be set on the window's own thread
             from System import Func, Type
             def apply():
@@ -471,6 +477,11 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
             return {'zoom': factor}
         except Exception as exc:
             return {'error': 'Could not change the size: %s' % exc}
+
+    def desktop_theme(self):
+        """The desktop's own theme for the page's 'Omarchy' theme (colours and font), or None when there is none (Windows, macOS,
+        Linux without Omarchy)."""
+        return omarchy_theme()
 
     def log(self, text):
         """Page-side diagnostics (audio events, script errors) -> app.log (next to the app, or under AppData when installed)."""

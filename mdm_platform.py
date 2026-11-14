@@ -7,6 +7,7 @@ one installed on the system (found on PATH). Data goes where each system expects
   macOS   ~/Library/Application Support/MiniDiscManager
 """
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -44,6 +45,37 @@ def open_path(path):
         subprocess.Popen(['open', path])
     else:
         subprocess.Popen(['xdg-open', path])
+
+
+def omarchy_theme():
+    """The desktop's theme on Omarchy (Linux): {'name', 'mode', 'colors': {key: '#rrggbb'}, 'font'}, or None elsewhere.
+    Read from the active theme's colors.toml (~/.local/state/omarchy/current/theme) and `omarchy-font-current`."""
+    if not IS_LINUX:
+        return None
+    state = os.environ.get('XDG_STATE_HOME') or os.path.join(os.path.expanduser('~'), '.local', 'state')
+    current = os.path.join(state, 'omarchy', 'current')
+    try:
+        import tomllib
+        with open(os.path.join(current, 'theme', 'colors.toml'), 'rb') as f:
+            data = tomllib.load(f)
+    except (OSError, ValueError, ImportError):
+        return None
+    colors = {k: v for k, v in data.items() if isinstance(v, str) and re.fullmatch(r'#[0-9A-Fa-f]{6}', v)}
+    if 'background' not in colors:
+        return None
+    try:
+        with open(os.path.join(current, 'theme.name'), encoding='utf-8') as f:
+            name = f.read().strip()
+    except OSError:
+        name = ''
+    font = ''
+    if shutil.which('omarchy-font-current'):
+        try:
+            font = subprocess.run(['omarchy-font-current'], capture_output=True, text=True, timeout=3).stdout.strip()
+        except (OSError, subprocess.SubprocessError):
+            pass
+    return {'name': name[:60], 'mode': 'light' if data.get('mode') == 'light' else 'dark', 'colors': colors,
+            'font': re.sub(r'[^\w \-]', '', font)[:60]}
 
 
 def windows_only(feature):

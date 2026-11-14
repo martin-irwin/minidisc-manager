@@ -480,13 +480,55 @@
   html.linux select { -webkit-appearance: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
                       background-repeat: no-repeat; background-position: right 8px center; }
   :where(html.linux) select { color: var(--text); background-color: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
+  /* Omarchy theme (Linux): the colours come from the desktop's theme (omarchyApply, in the first script); here its font and a
+     sharper, HUD-like shape. Primary buttons get dark text, since the desktop's accents are often bright. */
+  :root[data-theme="omarchy"] body { font-family: var(--omarchy-font, "Segoe UI"), "Segoe UI", system-ui, sans-serif; }
+  :root[data-theme="omarchy"] *:not(.dot) { border-radius: 2px !important; }
+  :root[data-theme="omarchy"] button.primary { color: var(--accent-ink); text-shadow: none; }
+  :root[data-theme="omarchy"] button.primary:hover { box-shadow: 0 0 14px var(--accent-glow); }
 </style>
 <script>
   // Linux (WebKitGTK): a few things differ, marked with html.linux. Windows (WebView2) reports "Windows NT" and is unchanged.
   if (/\bLinux\b/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)) document.documentElement.classList.add('linux');
+  // Omarchy (Linux): the desktop's own theme. The program reads it (desktop_theme); the last one is kept here so the page paints in it
+  // at once. Only #rrggbb colours and a plain font name get into the CSS.
+  window.omarchyApply = function (t) {
+    if (!t || !t.colors) return false;
+    var c = t.colors, hex = /^#[0-9a-f]{6}$/i;
+    var rgb = function (h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); };
+    var mix = function (a, b, p) { var x = rgb(a), y = rgb(b); return '#' + x.map(function (v, i) {
+      return ('0' + Math.round(v + (y[i] - v) * p).toString(16)).slice(-2); }).join(''); };
+    var rgba = function (h, a) { return 'rgba(' + rgb(h).join(',') + ',' + a + ')'; };
+    var ok = function (v) { return typeof v === 'string' && hex.test(v); }, pick = function () {
+      for (var i = 0; i < arguments.length; i++) if (ok(arguments[i])) return arguments[i]; return null; };
+    var bg = pick(c.background), fg = pick(c.foreground, c.cyan); if (!bg || !fg) return false;
+    var panel = pick(c.lighter_background) || mix(bg, fg, .05), accent = pick(c.accent, c.cyan, fg);
+    var v = {
+      '--bg': bg, '--panel': panel, '--panel-2': mix(panel, fg, .05), '--line': mix(bg, pick(c.muted, fg), .6),
+      '--text': pick(c.light_foreground, fg), '--muted': pick(c.dark_foreground, c.muted) || mix(fg, bg, .4),
+      '--accent': accent, '--accent-2': pick(c.red, c.magenta, accent), '--ok': pick(c.green) || '#3ecf8e',
+      '--warn': pick(c.yellow) || '#f5b84a', '--bad': pick(c.red) || '#ff6b6b',
+      '--chip': pick(c.selection_background, c.selection) || mix(panel, fg, .1), '--accent-ink': pick(c.dark_background, bg)
+    };
+    var css = ':root[data-theme="omarchy"]{color-scheme:' + (t.mode === 'light' ? 'light' : 'dark') + ';';
+    for (var k in v) css += k + ':' + v[k] + ';';
+    css += '--accent-glow:' + rgba(accent, .45) + ';--shadow:0 0 0 1px ' + rgba(accent, .14) + ',0 10px 30px rgba(0,0,0,.55);';
+    var font = String(t.font || '').replace(/[^\w \-]/g, '').slice(0, 60);
+    if (font) css += '--omarchy-font:"' + font + '";';
+    var st = document.getElementById('omarchyTheme');
+    if (!st) { st = document.createElement('style'); st.id = 'omarchyTheme'; document.head.appendChild(st); }
+    st.textContent = css + '}';
+    try { localStorage.setItem('mdm.omarchyTheme', JSON.stringify(t)); } catch (e) {}
+    var o = document.getElementById('themeOmarchy');
+    if (o) { o.hidden = false; o.textContent = 'Omarchy' + (t.name ? ' · ' + String(t.name).slice(0, 40) : ''); }
+    return true;
+  };
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
+    var cached = null;
+    try { cached = JSON.parse(localStorage.getItem('mdm.omarchyTheme') || 'null'); if (cached) omarchyApply(cached); } catch (e) {}
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
     document.addEventListener('DOMContentLoaded', function () {
+      if (cached) omarchyApply(cached);                            // now the Theme box exists: show its Omarchy entry
       var s = document.getElementById('themeSel'); if (!s) return;
       s.value = document.documentElement.getAttribute('data-theme') || '';
       s.addEventListener('change', function () {
@@ -511,7 +553,7 @@
   <div class="pill" title="Change the look of the app"><label for="themeSel" style="color:var(--muted)">Theme</label>
     <select id="themeSel" aria-label="Theme">
       <option value="">System</option><option value="dark">Dark</option><option value="light">Light</option><option value="midnight">Midnight</option>
-      <option value="orange">Orange</option><option value="forest">Forest</option><option value="sepia">Sepia</option>
+      <option value="orange">Orange</option><option value="forest">Forest</option><option value="sepia">Sepia</option><option value="omarchy" id="themeOmarchy" hidden>Omarchy</option>
     </select></div>
   <div class="pill cards-pill" title="Show or hide the main cards"><button id="cardsBtn" type="button" aria-haspopup="true">Cards ▾</button><div id="cardsMenu" class="cards-menu hidden" role="menu"></div></div>
   <div class="pill"><span class="dot" id="dot"></span><select id="devices" aria-label="Recorder"></select></div>
@@ -1743,7 +1785,32 @@ document.addEventListener('keydown', e => {
   else if (down) { e.preventDefault(); applyZoom(uiZoom - 0.1, true); }
   else if (e.code === 'Digit0' || e.code === 'Numpad0') { e.preventDefault(); applyZoom(1, true); }
 }, true);
-window.addEventListener('pywebviewready', () => { try { const z = Number(viewGet('mdm.zoom')); if (z && z !== 1) applyZoom(z, false); } catch (e) { /* not kept */ } });
+window.addEventListener('pywebviewready', () => { try {
+  const z = Number(viewGet('mdm.zoom'));
+  if (z && z !== 1) applyZoom(z, false);
+  // Linux: no size chosen yet and a window narrower than the layout is made for (scaled screens): fit it, from 60 % up.
+  else if (!z && IS_LINUX && window.innerWidth < 1400) applyZoom(Math.max(0.6, Math.floor(window.innerWidth / 1500 * 20) / 20), false);
+} catch (e) { /* not kept */ } });
+// ---- Omarchy (Linux): the desktop's theme as the 'Omarchy' theme, kept up to date while it is in use --------------------------
+// The first time the program sees an Omarchy desktop it switches to it, unless a theme was already chosen; a later choice is kept.
+async function omarchySync() {
+  let t = null;
+  try { t = await api().desktop_theme(); } catch (e) { return; }
+  if (!t || !omarchyApply(t)) return;
+  try {
+    if (!localStorage.getItem('mdm.omarchySeen')) {
+      localStorage.setItem('mdm.omarchySeen', '1');
+      if (!localStorage.getItem('theme')) {
+        localStorage.setItem('theme', 'omarchy'); document.documentElement.setAttribute('data-theme', 'omarchy');
+        const s = $('themeSel'); if (s) s.value = 'omarchy';
+      }
+    }
+  } catch (e) { /* storage blocked: the theme is still applied for this run */ }
+}
+if (IS_LINUX) window.addEventListener('pywebviewready', () => {
+  omarchySync();
+  setInterval(() => { if (document.documentElement.getAttribute('data-theme') === 'omarchy') omarchySync(); }, 5000);
+});
 window.addEventListener('error', e => dbg('script error: ' + e.message + ' @' + e.lineno));
 window.addEventListener('unhandledrejection', e => dbg('promise rejected: ' + (e.reason && e.reason.message || e.reason)));
 window.onPlayInterrupted = msg => { dbg('INTERRUPTED by the app: ' + msg); broken = true; audio.pause(); setStatus(msg); markNow(); };
