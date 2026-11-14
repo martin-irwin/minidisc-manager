@@ -142,6 +142,9 @@ if [ "$DO_SYSTEM" = 1 ]; then
         echo "    removed /etc/modprobe.d/minidisc.conf (left by an earlier setup)"
     fi
     sudo udevadm control --reload-rules
+    # Recorders plugged in now get the access rule ("change" events; the unbind rule only acts on add / bind, so a mounted disc is safe).
+    sudo udevadm trigger --action=change --subsystem-match=usb
+    sudo udevadm settle --timeout=10 || true
     # A Hi-MD recorder that is plugged in now: hand it over straight away, unless its disc is mounted.
     for intf in /sys/bus/usb/drivers/usb-storage/*:*; do
         [ -e "$intf" ] || continue
