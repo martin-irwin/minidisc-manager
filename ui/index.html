@@ -482,6 +482,7 @@
   :where(html.linux) select { color: var(--text); background-color: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
   /* Omarchy theme (Linux): the colours come from the desktop's theme (omarchyApply, in the first script); here its font and a
      sharper, HUD-like shape. Primary buttons get dark text, since the desktop's accents are often bright. */
+  .linux-only { display: none; }  html.linux .linux-only { display: inline; }      /* shown only on Linux (WebKitGTK) */
   :root[data-theme="omarchy"] body { font-family: var(--omarchy-font, "Segoe UI"), "Segoe UI", system-ui, sans-serif; }
   :root[data-theme="omarchy"] *:not(.dot) { border-radius: 2px !important; }
   :root[data-theme="omarchy"] button.primary { color: var(--accent-ink); text-shadow: none; }
@@ -859,7 +860,7 @@
   <input type="range" id="vol" min="0" max="100" value="80" title="Volume">
   <audio id="audio" preload="auto"></audio>
 </div>
-<footer>Renaming changes only the disc's track index, and a copy of the old one is kept in the app's backups folder so Undo can restore it. Menu settings (record mode, backlight, beep…) can't be changed from here: no documented command for them exists.<div class="copyright">Copyright © 2026 Vinny Powell</div></footer>
+<footer>Renaming changes only the disc's track index, and a copy of the old one is kept in the app's backups folder so Undo can restore it. Menu settings (record mode, backlight, beep…) can't be changed from here: no documented command for them exists.<div class="copyright">Copyright © 2026 Vinny Powell<span class="linux-only"> · Linux port © 2026 Martin Irwin</span></div></footer>
 <div id="drop"><div>Drop MP3 or WAV files to add them to the disc<small>16-bit 44.1 kHz stereo WAV, or MP3</small></div></div>
 <div id="modal"><div class="sheet" id="sheet"></div></div>
 <div id="eqWin" class="hidden"></div>
