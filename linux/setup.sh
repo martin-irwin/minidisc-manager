@@ -6,7 +6,7 @@
 #   3. puts the Node libraries in runtime/node_modules, at the same versions as the Windows build, with the himd-js delete fix
 #   4. copies the LP2 / LP4 encoder (atracdenc.js) into runtime/atracdenc
 #   5. builds the Hi-SP / Hi-LP encoder (atracdenc 0.2.3 + the frame-size patch) into runtime/atracdenc3p   (skip: --no-atrac3plus)
-#   6. with sudo: lets you reach MiniDisc recorders over USB, and tells usb-storage to leave Hi-MD recorders alone (skip: --no-system)
+#   6. with sudo: a udev rule so you can reach MiniDisc recorders over USB, and Linux leaves Hi-MD recorders unmounted (skip: --no-system)
 #
 # Safe to run again; every step checks what is already there. Then start the program with linux/run.sh.
 set -euo pipefail
@@ -30,8 +30,8 @@ warn() { printf '\033[33m!   %s\033[0m\n' "$*"; }
 die()  { printf '\033[31mx   %s\033[0m\n' "$*"; exit 1; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
-# Hi-MD recorders in Hi-MD mode (from himd-js): usb-storage must leave these to the program ("i" = ignore the device).
-HIMD_QUIRKS="054c:017f:i,054c:0181:i,054c:0183:i,054c:0185:i,054c:0187:i,054c:018b:i,054c:01ea:i,054c:021a:i,054c:021c:i,054c:022d:i,054c:023d:i,054c:0287:i"
+# Hi-MD recorders in Hi-MD mode (from himd-js; the same list as in 60-minidisc.rules): usb-storage must leave these to the program.
+HIMD_IDS="054c:017f,054c:0181,054c:0183,054c:0185,054c:0187,054c:018b,054c:01ea,054c:021a,054c:021c,054c:022d,054c:023d,054c:0287"
 
 # ---------------------------------------------------------------------------------------------------------------------------
 say "1/6  Checking system programs"
@@ -134,18 +134,32 @@ fi
 # ---------------------------------------------------------------------------------------------------------------------------
 if [ "$DO_SYSTEM" = 1 ]; then
     say "6/6  USB access (needs sudo once)"
-    echo "    - /etc/udev/rules.d/60-minidisc.rules: you can use MiniDisc recorders without root"
-    echo "    - /etc/modprobe.d/minidisc.conf: Linux's usb-storage leaves Hi-MD recorders to this program (like Zadig on Windows)"
+    echo "    /etc/udev/rules.d/60-minidisc.rules: you can use MiniDisc recorders without root, and Linux leaves Hi-MD recorders"
+    echo "    to this program instead of mounting them as a USB drive (the Linux side of the Zadig step on Windows)"
     sudo install -m 644 "$LINUX/60-minidisc.rules" /etc/udev/rules.d/60-minidisc.rules
-    echo "options usb-storage quirks=$HIMD_QUIRKS" | sudo tee /etc/modprobe.d/minidisc.conf >/dev/null
-    q=/sys/module/usb_storage/parameters/quirks
-    if [ -e "$q" ]; then                                                 # usb-storage already loaded: apply now, keeping any other quirks
-        cur="$(cat "$q" 2>/dev/null || true)"
-        case ",$cur," in *",054c:0287:i,"*) ;; *) echo "${cur:+$cur,}$HIMD_QUIRKS" | sudo tee "$q" >/dev/null ;; esac
+    if [ -e /etc/modprobe.d/minidisc.conf ]; then    # from an earlier version of this script: its usb-storage option was too long
+        sudo rm -f /etc/modprobe.d/minidisc.conf     # for the kernel (127 characters), which could stop usb-storage loading at boot
+        echo "    removed /etc/modprobe.d/minidisc.conf (left by an earlier setup)"
     fi
     sudo udevadm control --reload-rules
-    sudo udevadm trigger --subsystem-match=usb
-    echo "    ok - unplug the recorder and plug it in again if it was connected"
+    # A Hi-MD recorder that is plugged in now: hand it over straight away, unless its disc is mounted.
+    for intf in /sys/bus/usb/drivers/usb-storage/*:*; do
+        [ -e "$intf" ] || continue
+        real="$(readlink -f "$intf")"
+        id="$(cat "$(dirname "$real")/idVendor" 2>/dev/null):$(cat "$(dirname "$real")/idProduct" 2>/dev/null)"
+        case ",$HIMD_IDS," in *",$id,"*) ;; *) continue ;; esac
+        mounted=""
+        for b in "$real"/host*/target*/*/block/*; do
+            [ -e "$b" ] && lsblk -nro MOUNTPOINT "/dev/$(basename "$b")" 2>/dev/null | grep -q . && mounted="/dev/$(basename "$b")"
+        done
+        if [ -n "$mounted" ]; then
+            warn "The Hi-MD recorder's disc is mounted ($mounted). Eject it (udisksctl unmount -b $mounted), then unplug the recorder and plug it in again."
+        else
+            echo -n "$(basename "$real")" | sudo tee /sys/bus/usb/drivers/usb-storage/unbind >/dev/null
+            echo "    the connected Hi-MD recorder ($id) is ready for MiniDisc Manager"
+        fi
+    done
+    echo "    ok"
 else
     say "6/6  USB access: skipped (--no-system). Without it you may need to run as root, and Hi-MD recorders stay with usb-storage."
 fi

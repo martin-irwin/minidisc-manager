@@ -1,22 +1,62 @@
-# MiniDisc Manager (linux/setup.sh installs this as /etc/udev/rules.d/60-minidisc.rules).
-# Lets the person signed in at the computer use MiniDisc recorders over USB without root - the Linux side of the
+# MiniDisc Manager (linux/setup.sh installs this as /etc/udev/rules.d/60-minidisc.rules) - the Linux side of the
 # "WinUSB driver with Zadig" step on Windows. Generated from the device lists in himd_dev.py (NetMD) and himd-js (Hi-MD).
+#
+# Hi-MD recorders in Hi-MD mode are USB mass storage, so Linux would treat them as a USB drive. For these models:
+#   1. the desktop never mounts the disc (UDISKS_IGNORE),
+#   2. usb-storage is unbound from the recorder as soon as it takes it, so MiniDisc Manager can talk to it directly,
+#   3. the person signed in at the computer may use the recorder without root (uaccess).
+# (A usb-storage "quirks" option cannot be used: the kernel keeps only 127 characters of it, too few for all the models.)
 
-# Hi-MD recorders in Hi-MD mode (USB mass storage). linux/setup.sh also tells usb-storage to ignore these.
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="017f", TAG+="uaccess"  # Sony MZ-NH1
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0181", TAG+="uaccess"  # Sony MZ-NH3D
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0183", TAG+="uaccess"  # Sony MZ-NH900
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0185", TAG+="uaccess"  # Sony MZ-NH700
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0187", TAG+="uaccess"  # Sony MZ-NH600
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="018b", TAG+="uaccess"  # Sony LAM
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="01ea", TAG+="uaccess"  # Sony MZ-DH10P
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021a", TAG+="uaccess"  # Sony MZ-RH10
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021c", TAG+="uaccess"  # Sony MZ-RH910
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="022d", TAG+="uaccess"  # Sony CMT-AH10
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="023d", TAG+="uaccess"  # Sony DS-HMD1
-SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0287", TAG+="uaccess"  # Sony MZ-RH1
+# Sony MZ-NH1
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="017f", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="017f", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="017f", TAG+="uaccess"
+# Sony MZ-NH3D
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0181", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0181", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0181", TAG+="uaccess"
+# Sony MZ-NH900
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0183", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0183", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0183", TAG+="uaccess"
+# Sony MZ-NH700
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0185", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0185", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0185", TAG+="uaccess"
+# Sony MZ-NH600
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0187", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0187", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0187", TAG+="uaccess"
+# Sony LAM
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="018b", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="018b", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="018b", TAG+="uaccess"
+# Sony MZ-DH10P
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="01ea", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="01ea", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="01ea", TAG+="uaccess"
+# Sony MZ-RH10
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="021a", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="021a", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021a", TAG+="uaccess"
+# Sony MZ-RH910
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="021c", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="021c", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021c", TAG+="uaccess"
+# Sony CMT-AH10
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="022d", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="022d", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="022d", TAG+="uaccess"
+# Sony DS-HMD1
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="023d", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="023d", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="023d", TAG+="uaccess"
+# Sony MZ-RH1
+SUBSYSTEM=="block", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0287", ENV{UDISKS_IGNORE}="1"
+ACTION!="remove", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_interface", DRIVER=="usb-storage", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0287", RUN+="/bin/sh -c 'echo -n %k > /sys/bus/usb/drivers/usb-storage/unbind'"
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0287", TAG+="uaccess"
 
-# NetMD recorders and decks (standard MiniDiscs; Hi-MD recorders with a standard disc inside).
+# NetMD recorders and decks (standard MiniDiscs; Hi-MD recorders with a standard disc inside): access only.
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04da", ATTR{idProduct}=="23b3", TAG+="uaccess"  # Panasonic SJ-MR250
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04da", ATTR{idProduct}=="23b6", TAG+="uaccess"  # Panasonic SJ-MR270
 SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04dd", ATTR{idProduct}=="7202", TAG+="uaccess"  # Sharp IM-MT899H
