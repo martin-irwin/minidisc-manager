@@ -55,7 +55,7 @@ import licensing
 import sonos_cast
 import video_links
 from mdm_common import UNITS_PER_SECOND
-from mdm_platform import data_root, open_path
+from mdm_platform import IS_LINUX, data_root, open_path
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
@@ -524,10 +524,10 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
         return {'ok': True}
 
     def open_driver_guide(self):
-        """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser."""
-        path = os.path.join(HERE, 'DRIVER-SETUP.html')
+        """Opens DRIVER-SETUP.html (how to put the WinUSB driver on a recorder) in the default browser; on Linux, linux/README.md."""
+        path = os.path.join(HERE, 'linux', 'README.md') if IS_LINUX else os.path.join(HERE, 'DRIVER-SETUP.html')
         if not os.path.isfile(path):
-            return {'error': 'The driver guide (DRIVER-SETUP.html) is missing from the app folder.'}
+            return {'error': 'The driver guide (%s) is missing from the app folder.' % os.path.basename(path)}
         try:
             open_path(path)
         except OSError as exc:

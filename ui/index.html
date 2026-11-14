@@ -475,8 +475,15 @@
   input[type=checkbox]:disabled { cursor: not-allowed; opacity: .35; }
   button.danger:not(:disabled):hover { border-color: var(--bad); color: var(--bad); }
   .hidden { display: none !important; }
+  /* Linux: WebKitGTK draws a <select> with the desktop theme and ignores its colours, so draw it like the other controls. The
+     colours use :where() so they weigh the same as the plain select rules above and never beat a more specific one. */
+  html.linux select { -webkit-appearance: none; appearance: none; padding-right: 24px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23888'/%3E%3C/svg%3E");
+                      background-repeat: no-repeat; background-position: right 8px center; }
+  :where(html.linux) select { color: var(--text); background-color: var(--bg); border: 1px solid var(--line); border-radius: 8px; }
 </style>
 <script>
+  // Linux (WebKitGTK): a few things differ, marked with html.linux. Windows (WebView2) reports "Windows NT" and is unchanged.
+  if (/\bLinux\b/.test(navigator.userAgent) && !/Android/.test(navigator.userAgent)) document.documentElement.classList.add('linux');
   (function () {                                                  // apply the saved theme before the page paints, so there is no flash
     try { var t = localStorage.getItem('theme'); if (t) document.documentElement.setAttribute('data-theme', t); } catch (e) {}
     document.addEventListener('DOMContentLoaded', function () {
@@ -818,6 +825,7 @@
 
 <script>
 const $ = id => document.getElementById(id);
+const IS_LINUX = document.documentElement.classList.contains('linux');     // set before the page paints (first <script>)
 // Every call goes through here: an answer that says `licenseRequired` (paid edition, trial over) also opens the license sheet.
 const api = () => new Proxy(window.pywebview.api, { get(t, k) {
   const f = t[k]; if (typeof f !== 'function') return f;
@@ -990,7 +998,7 @@ function td(text, cls) { const c = document.createElement('td'); c.textContent =
 // A button on the empty / error screens that opens the USB driver guide (DRIVER-SETUP.html, next to the app).
 function driverHelp() {
   const b = document.createElement('button');
-  b.textContent = 'Driver setup guide…'; b.className = 'primary'; b.style.marginTop = '16px';
+  b.textContent = IS_LINUX ? 'Linux setup guide…' : 'Driver setup guide…'; b.className = 'primary'; b.style.marginTop = '16px';
   b.onclick = async () => { const r = await api().open_driver_guide(); if (r && r.error) toast(r.error, true); };
   $('empty').append(document.createElement('br'), b);
 }
@@ -1000,7 +1008,9 @@ async function scan() {
   const sel = $('devices'); sel.textContent = '';
   if (!r.devices.length) {
     const o = document.createElement('option'); o.textContent = 'No recorder found'; sel.append(o);
-    emptyState('No recorder found', r.error || 'Connect a Hi-MD or NetMD Walkman by USB with a disc inside, then press rescan. A recorder only shows up once its USB driver has been set up (WinUSB).');
+    emptyState('No recorder found', r.error || 'Connect a Hi-MD or NetMD Walkman by USB with a disc inside, then press rescan. ' + (IS_LINUX
+      ? 'On Linux a recorder only shows up once linux/setup.sh has given this program access to it (see the setup guide).'
+      : 'A recorder only shows up once its USB driver has been set up (WinUSB).'));
     driverHelp();
     return;
   }
@@ -5867,9 +5877,10 @@ async function firstRunNotice() {
   openSheet(el('h2', { textContent: 'Before you start' }),
     el('div', { className: 'notice warn', textContent: 'MiniDisc Manager can write to and erase MiniDiscs. It has only been tried on a Sony MZ-NH700 and an MZ-RH1, and a disc can be left unplayable if a write is interrupted.' }),
     el('div', { className: 'notice', textContent: 'Copy any recordings you cannot replace to your PC first (Save to PC…). Do not unplug the recorder while the program says it is working.' }),
-    el('div', { className: 'notice', textContent: 'The recorder needs the WinUSB driver to be seen by this program: see the driver guide below. MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos.' }),
+    el('div', { className: 'notice', textContent: (IS_LINUX ? 'On Linux, linux/setup.sh must have been run once for the recorder to be seen: see the setup guide below. '
+      : 'The recorder needs the WinUSB driver to be seen by this program: see the driver guide below. ') + 'MiniDisc Manager is not affiliated with or endorsed by Sony or Sonos.' }),
     el('label', { className: 'notice', style: 'display:flex;gap:8px;align-items:center;cursor:pointer' }, ok, el('span', { textContent: 'I understand, and I have copied off anything I cannot replace.' })),
-    el('div', { className: 'row' }, el('button', { textContent: 'Driver setup guide…', onclick: () => api().open_driver_guide() }), go));
+    el('div', { className: 'row' }, el('button', { textContent: IS_LINUX ? 'Linux setup guide…' : 'Driver setup guide…', onclick: () => api().open_driver_guide() }), go));
 }
 // ---- License (paid edition only: the button stays hidden when the program does not ask for a key) ------------------------------
 function paintLicense(s) {
