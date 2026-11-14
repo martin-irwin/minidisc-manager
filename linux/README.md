@@ -1,8 +1,12 @@
 # MiniDisc Manager on Linux
 
+![MiniDisc Manager on Omarchy Linux, in the Omarchy theme (Cyberpunk 2077 Netrunner)](screenshot.png)
+
+*Running on Omarchy (Arch Linux) with a Sony Hi-MD recorder and a standard MiniDisc, in the desktop's own theme.*
+
 MiniDisc Manager is written by Vinny Powell for Windows. These files let it run **from source on Linux**. Windows behaviour is unchanged: every difference is behind a platform check (see `mdm_platform.py`).
 
-> **Status: early.** The setup and the program's start-up are tested on Arch / Omarchy (x86_64 and aarch64). Reading and writing a real recorder **has not been tested on Linux yet**. Back up anything you can't replace before you edit a disc, exactly as on Windows.
+> **Status: early.** The setup is tested on Arch / Omarchy (x86_64 and aarch64). On real hardware (a Sony Hi-MD recorder, `054c:0187`, on Omarchy x86_64): a Hi-MD disc was read; on a standard disc an LP2 track was added, read back and deleted, and the other tracks were unchanged. Other recorders and functions have not been tried on Linux yet. Back up anything you can't replace before you edit a disc, exactly as on Windows.
 
 ## Install
 
