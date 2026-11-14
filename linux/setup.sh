@@ -109,7 +109,7 @@ if [ "$DO_AT3P" = 1 ]; then
     else
         work="$(mktemp -d)"
         trap 'rm -rf "$work"' EXIT
-        git clone --quiet --depth 1 --branch 0.2.3 --recurse-submodules --shallow-submodules \
+        git -c advice.detachedHead=false clone --quiet --depth 1 --branch 0.2.3 --recurse-submodules --shallow-submodules \
             https://github.com/dcherednik/atracdenc "$work/atracdenc"
         patch -d "$work/atracdenc" -p1 --silent < "$LINUX/patches/atracdenc-0.2.3-framesize.patch"
         CMAKE="$(command -v cmake || true)"
