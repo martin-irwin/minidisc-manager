@@ -56,6 +56,12 @@ import sonos_cast
 import video_links
 from mdm_common import UNITS_PER_SECOND
 from mdm_platform import IS_LINUX, data_root, omarchy_theme, open_path
+
+if IS_LINUX:
+    # WebKitGTK's GPU compositing: on a computer without a usable GPU it is done in software for every frame and kept a whole CPU
+    # core busy (plus a third of one for this process) with the window doing nothing; without it the idle window uses about 2 %.
+    # A value already set in the environment is kept.
+    os.environ.setdefault('WEBKIT_DISABLE_COMPOSITING_MODE', '1')
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
