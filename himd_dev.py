@@ -6,6 +6,7 @@ sub-commands (as used by Sony's own software and by himd-js).
 """
 import datetime
 import struct
+import sys
 
 import libusb_package
 import usb.backend.libusb1
@@ -14,6 +15,11 @@ import usb.util
 
 SONY = 0x054C
 EP_IN, EP_OUT = 0x81, 0x02
+
+# Linux: the kernel's usb-storage driver takes a Hi-MD recorder as soon as it is plugged in (and the desktop may mount the disc). The
+# program does not pull it away, because a mounted disc could be damaged; linux/setup.sh tells usb-storage to leave the recorders alone.
+LINUX_BUSY = ('Linux is using this recorder as a USB drive, so the program cannot talk to it. Run linux/setup.sh once (it tells Linux '
+              'to leave MiniDisc recorders to this program), then unplug the recorder and plug it in again.')
 
 
 class HiMDError(Exception):
@@ -76,6 +82,13 @@ class Device:
         self.dev = usb_dev
         self.tag = 0
         self.block_size = 2048
+        if sys.platform.startswith('linux'):
+            try:
+                busy = self.dev.is_kernel_driver_active(0)
+            except (usb.core.USBError, NotImplementedError):
+                busy = False
+            if busy:
+                raise HiMDError(LINUX_BUSY)
         try:
             self.dev.set_configuration()
         except usb.core.USBError:

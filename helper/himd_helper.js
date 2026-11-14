@@ -4,6 +4,20 @@
 const path = require('path');
 
 const RT = process.env.HIMD_RUNTIME || path.join(__dirname, '..', 'runtime');
+// A program from the runtime folder: runtime\name.exe on Windows (as always). On Linux and macOS runtime/name when it is there,
+// else the system's own copy (found on PATH), e.g. ffmpeg from the package manager. A missing program gives the runtime path,
+// so the 'missing (path)' messages still say where it was looked for.
+const onPath = name => {                     // full path of a program on PATH (like `which`), or null
+    for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+        const f = path.join(dir, name);
+        try { require('fs').accessSync(f, require('fs').constants.X_OK); return f; } catch (e) { /* not here */ }
+    }
+    return null;
+};
+const BIN = name => {
+    const exe = path.join(RT, name + (process.platform === 'win32' ? '.exe' : ''));
+    return process.platform === 'win32' || require('fs').existsSync(exe) ? exe : (onPath(name) || exe);
+};
 const mod = name => require(path.join(RT, 'node_modules', name));
 
 const { WebUSB } = mod('usb');
@@ -76,7 +90,7 @@ process.on('exit', () => { for (const p of temps.splice(0)) { try { fs.unlinkSyn
 
 // Runs the bundled ffmpeg; returns its stderr. `what` completes "Could not …" if it fails.
 function ffmpeg(args, what) {
-    const exe = path.join(RT, 'ffmpeg.exe');
+    const exe = BIN('ffmpeg');
     if (!fs.existsSync(exe)) throw new Error('The bundled decoder is missing (' + exe + ').');
     const r = require('child_process').spawnSync(exe, ['-hide_banner', '-y', ...args], { windowsHide: true, encoding: 'utf8', maxBuffer: 1 << 26 });
     if (r.status !== 0) throw new Error('Could not ' + what + '.');
@@ -88,7 +102,7 @@ function ffmpeg(args, what) {
 function ffmpegTags(file) {
     const none = { title: '', artist: '', album: '' };
     const run = extra => {                                         // the tags as ffmpeg's "ffmetadata" text, parsed into {lower-case name: value}
-        const out = require('child_process').execFileSync(path.join(RT, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
+        const out = require('child_process').execFileSync(BIN('ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
             { encoding: 'utf8', timeout: 20000, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
         const tags = {};
         for (const line of out.split(/\r?\n/)) {
@@ -241,7 +255,7 @@ async function streamAtrac(ctx, track, dump, out, isStopped, exact = false, kind
     const audioSize = mod('himd-js/dist/streams').HIMD_AUDIO_SIZE;
     const bytesPerFrame = isMp3 ? 0 : codecs.getBytesPerFrame(track), samplesPerFrame = isMp3 ? 0 : codecs.getSamplesPerFrame(track);
     const rate = isMp3 ? 44100 : codecs.getSampleRate(track);                  // an MP3 is converted to 44.1 kHz stereo
-    const exe = path.join(RT, 'ffmpeg.exe');
+    const exe = BIN('ffmpeg');
     if (!fs.existsSync(exe)) throw new Error('The bundled decoder is missing (' + exe + ').');
     const p = require('child_process').spawn(exe, ['-hide_banner', '-loglevel', 'error', '-f', isMp3 ? 'mp3' : 'oma', '-i', 'pipe:0',
         '-vn', ...(isMp3 ? ['-ar', '44100', '-ac', '2'] : []), '-acodec', 'pcm_s16le', '-f', 's16le', 'pipe:1'], { windowsHide: true });

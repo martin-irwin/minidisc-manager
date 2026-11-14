@@ -222,7 +222,7 @@ class PcAudioMixin:
                 f.write(text)
         try:
             r = subprocess.run([POWERSHELL, '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', path] + list(args),
-                               capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=0x08000000)
+                               capture_output=True, text=True, encoding='utf-8', errors='replace', timeout=timeout, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         except subprocess.TimeoutExpired:
             raise RuntimeError('Windows took too long to answer.')
         except OSError as exc:

@@ -6,6 +6,7 @@ import tempfile
 import webbrowser
 
 import yoto
+from mdm_paths import FFMPEG
 from mdm_paths import HERE, USER_DIR
 
 
@@ -136,7 +137,7 @@ class YotoMixin:
         seconds = sum(by_key[t['key']]['seconds'] for t in tracks)
         tmp = tempfile.mkdtemp(prefix='mdm-yoto-')
         self._yoto_cancel = False
-        ffmpeg = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        ffmpeg = FFMPEG
         try:
             if shutil.disk_usage(tmp).free < seconds * 176400 * 1.15 + 200 * 1000 * 1000:
                 return {'error': 'There is not enough free space on this PC’s temporary drive (about %d MB are needed).' % int(seconds * 176400 / 1e6)}

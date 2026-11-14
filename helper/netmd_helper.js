@@ -4,6 +4,20 @@
 const path = require('path');
 
 const RT = process.env.HIMD_RUNTIME || path.join(__dirname, '..', 'runtime');
+// A program from the runtime folder: runtime\name.exe on Windows (as always). On Linux and macOS runtime/name when it is there,
+// else the system's own copy (found on PATH), e.g. ffmpeg from the package manager. A missing program gives the runtime path,
+// so the 'missing (path)' messages still say where it was looked for.
+const onPath = name => {                     // full path of a program on PATH (like `which`), or null
+    for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+        const f = path.join(dir, name);
+        try { require('fs').accessSync(f, require('fs').constants.X_OK); return f; } catch (e) { /* not here */ }
+    }
+    return null;
+};
+const BIN = name => {
+    const exe = path.join(RT, name + (process.platform === 'win32' ? '.exe' : ''));
+    return process.platform === 'win32' || require('fs').existsSync(exe) ? exe : (onPath(name) || exe);
+};
 const mod = name => require(path.join(RT, 'node_modules', name));
 
 const { WebUSB } = mod('usb');
@@ -111,7 +125,7 @@ const os = require('os');
 const cleanTitle = s => String(s || '').normalize('NFKD').replace(/[^\x20-\x7e]/g, '').replace(/\s+/g, ' ').trim().slice(0, 120);
 
 function convertToWav(file) {
-    const exe = path.join(RT, 'ffmpeg.exe');
+    const exe = BIN('ffmpeg');
     if (!fs.existsSync(exe)) throw new Error('The bundled decoder is missing, so only .wav files can be added.');
     const out = path.join(os.tmpdir(), 'mdm-' + process.pid + '-' + Math.random().toString(36).slice(2) + '.wav');
     try {
@@ -129,7 +143,7 @@ function convertToWav(file) {
 function ffmpegTags(file) {
     const none = { title: '', artist: '', album: '' };
     const run = extra => {                                         // the tags as ffmpeg's "ffmetadata" text, parsed into {lower-case name: value}
-        const out = require('child_process').execFileSync(path.join(RT, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
+        const out = require('child_process').execFileSync(BIN('ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-i', file, '-vn', ...extra, '-f', 'ffmetadata', '-'],
             { encoding: 'utf8', timeout: 20000, windowsHide: true, stdio: ['ignore', 'pipe', 'ignore'] });
         const tags = {};
         for (const line of out.split(/\r?\n/)) {
@@ -221,7 +235,7 @@ async function makeIdle(iface) {
 // and plays that. Returns {id, title, seconds}, or null if the copy could not be made (the upload itself is not affected).
 function saveCopy(info, copyDir) {
     try {
-        const exe = path.join(RT, 'ffmpeg.exe');
+        const exe = BIN('ffmpeg');
         if (!copyDir || !fs.existsSync(exe)) return null;
         fs.mkdirSync(copyDir, { recursive: true });
         const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -339,7 +353,7 @@ const commands = {
                 if (t.codec === 'SP') {
                     temp = path.join(os.tmpdir(), 'mdm-clone-' + process.pid + '-' + n + '.wav');
                     await say({ event: 'encoding', file: n, name, format: 'decode' });
-                    require('child_process').execFileSync(path.join(RT, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-y', '-i', t.file, '-vn', '-ar', '44100', '-ac', '2',
+                    require('child_process').execFileSync(BIN('ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-y', '-i', t.file, '-vn', '-ar', '44100', '-ac', '2',
                         '-acodec', 'pcm_s16le', '-f', 'wav', temp], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
                     const buf = fs.readFileSync(temp), d = parseWav(buf);
                     const len = d.length - (d.length % 4);
@@ -459,7 +473,7 @@ const commands = {
         fs.writeFileSync(raw, data);
         if (keepRaw) return { file: raw, kind: raw.endsWith('.aea') ? 'aea' : 'atrac3wav', bytes: data.length };
         try {
-            const exe = path.join(RT, 'ffmpeg.exe');
+            const exe = BIN('ffmpeg');
             if (!fs.existsSync(exe)) throw new Error('The bundled decoder is missing.');
             require('child_process').execFileSync(exe, ['-hide_banner', '-loglevel', 'error', '-y', '-i', raw, '-vn', '-acodec', 'pcm_s16le', '-f', 'wav', out],
                 { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
@@ -484,7 +498,7 @@ const commands = {
         let stop = false;
         process.stdin.on('data', d => { if (String(d).includes('stop')) stop = true; });
         process.stdin.resume();
-        const exe = path.join(RT, 'ffmpeg.exe');
+        const exe = BIN('ffmpeg');
         if (!fs.existsSync(exe)) throw new Error('The bundled decoder is missing.');
         const declared = (Math.round(seconds) + 3) * 176400;
         const fd = fs.openSync(out, 'w');

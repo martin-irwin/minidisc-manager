@@ -10,6 +10,7 @@ import tempfile
 import threading
 
 import cdrip
+from mdm_paths import FFMPEG
 from mdm_paths import HERE
 
 
@@ -261,7 +262,7 @@ class CdMixin:
                 m = re.match(r'TRACK (\d+) of (\d+)', line)
                 if m:
                     tell(phase='burning', n=int(m.group(1)) - 1, count=int(m.group(2)))
-            res = self._burn_ps(['-Drive', letter, '-Burn', '-ListFile', listing, '-Ffmpeg', os.path.join(HERE, 'runtime', 'ffmpeg.exe')], 2400, on_line)
+            res = self._burn_ps(['-Drive', letter, '-Burn', '-ListFile', listing, '-Ffmpeg', FFMPEG], 2400, on_line)
             if 'error' in res:
                 return {'error': res['error']}
             return {'ok': True, 'tracks': len(files)}

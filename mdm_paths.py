@@ -3,22 +3,25 @@ import os
 import sys
 import tempfile
 
+from mdm_platform import data_root, tool
+
 FROZEN = bool(getattr(sys, 'frozen', False))          # True in the installed / portable program (built with PyInstaller)
 HERE = os.path.dirname(os.path.abspath(__file__))     # the program's own files: runtime\, helper\, ui\ (only read)
 
 # Files the program writes (index backups, the log): next to the program when it runs from source, under AppData when installed
 # (an installed program may sit in a folder it is not allowed to write to).
-USER_DIR = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager') if FROZEN else HERE
+USER_DIR = os.path.join(data_root(HERE), 'MiniDiscManager') if FROZEN else HERE
 BACKUP_DIR = os.path.join(USER_DIR, 'backups')
 
 HELPER = os.path.join(HERE, 'helper', 'himd_helper.js')
 NETMD_HELPER = os.path.join(HERE, 'helper', 'netmd_helper.js')     # standard MiniDiscs (NetMD)
 # Bundled Node runtime (with himd-js in runtime\node_modules); no other program needs to be installed.
-NODE_EXE = os.path.join(HERE, 'runtime', 'node.exe')
+NODE_EXE = tool(HERE, 'node')
+FFMPEG = tool(HERE, 'ffmpeg')     # runtime\ffmpeg.exe on Windows; runtime/ffmpeg or the system's ffmpeg elsewhere
 APPAUDIO = os.path.join(HERE, 'helper', 'appaudio.exe')   # records one program's sound (used for the streaming-site windows)
 
 # Big working copies are kept out of OneDrive on purpose, always under AppData (also when run from source).
-_APPDATA = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager')
+_APPDATA = os.path.join(data_root(HERE), 'MiniDiscManager')
 COPIES_DIR = os.path.join(_APPDATA, 'copies')    # FLAC copies of the tracks this app adds to standard discs, so they can be played here
 CLONE_DIR = os.path.join(_APPDATA, 'clone')      # the PC copy of a disc being cloned (it can be a gigabyte); stays until the clone is written and checked
 CONVERT_DIR = os.path.join(_APPDATA, 'convert')  # the PC copy of a standard disc being converted to Hi-MD; stays until it is written back and checked

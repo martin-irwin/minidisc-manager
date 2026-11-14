@@ -17,6 +17,7 @@ import himd_disc
 import himd_fs
 import usb.util
 from mdm_common import wav_data_bytes, wav_header
+from mdm_paths import FFMPEG
 from mdm_paths import HERE, NETMD_HELPER, SPLIT_DIR
 
 
@@ -95,7 +96,7 @@ class EditMixin:
 
     def _volume_stats(self, path):
         """(mean dB, peak dB) of a WAV file as ffmpeg's volumedetect reports them."""
-        exe = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        exe = FFMPEG
         r = subprocess.run([exe, '-hide_banner', '-nostats', '-i', path, '-af', 'volumedetect', '-f', 'null', '-'], capture_output=True, text=True,
                            encoding='utf-8', errors='replace', creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         mean = re.search(r'mean_volume:\s*(-?[\d.]+|-inf) dB', r.stderr)

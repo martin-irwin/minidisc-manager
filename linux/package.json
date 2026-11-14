@@ -1,0 +1,29 @@
+{
+  "name": "minidisc-manager-runtime",
+  "private": true,
+  "description": "The Node libraries MiniDisc Manager's helper scripts use, at the same versions as the Windows build (0.27.9), including the indirect ones (overrides). linux/setup.sh installs them into runtime/node_modules.",
+  "license": "GPL-2.0",
+  "dependencies": {
+    "himd-js": "0.2.7",
+    "netmd-js": "4.3.0",
+    "netmd-exploits": "0.5.11",
+    "netmd-tocmanip": "0.1.5",
+    "node-mass-storage": "0.2.4",
+    "nufatfs": "0.1.10",
+    "node-id3": "0.2.6",
+    "usb": "2.13.0"
+  },
+  "overrides": {
+    "add": "2.0.6",
+    "brace-expansion": "1.1.12",
+    "jsbi": "3.2.5",
+    "min-document": "2.19.0",
+    "minimatch": "3.1.2",
+    "minimist": "1.2.6",
+    "moment": "2.29.4",
+    "nan": "2.17.0",
+    "node-gyp-build": "4.8.1",
+    "pako": "2.0.4",
+    "tslib": "2.4.0"
+  }
+}

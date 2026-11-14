@@ -6,6 +6,7 @@ import os
 import bandcamp
 import radio
 import webview
+from mdm_paths import FFMPEG
 from mdm_paths import APPAUDIO, BC_DIR, HERE, REC_DIR, USER_DIR
 
 
@@ -24,7 +25,7 @@ class SiteRecordMixin:
         rec = self._recs.get(site)
         if rec is None:
             if site == 'radio':
-                rec = radio.RadioRecorder(os.path.join(HERE, 'runtime', 'ffmpeg.exe'), os.path.join(REC_DIR, site), self.log)
+                rec = radio.RadioRecorder(FFMPEG, os.path.join(REC_DIR, site), self.log)
             else:
                 rec = bandcamp.Recorder(APPAUDIO, os.path.join(REC_DIR, site), self.log)
             self._recs[site] = rec

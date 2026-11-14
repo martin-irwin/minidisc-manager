@@ -1,0 +1,4 @@
+# Made by linux/setup.sh (Linux / macOS); the Windows build bundles these itself.
+/runtime/
+/.venv/
+__pycache__/

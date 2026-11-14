@@ -13,6 +13,8 @@ import chromecast
 import lyricvideo
 import mediaserver
 import sonos
+from mdm_paths import FFMPEG
+from mdm_platform import data_root
 from mdm_paths import HERE, PLAY_DIR
 
 
@@ -33,7 +35,7 @@ class CastMixin:
 
     # Google Cast devices (a Google TV such as the Philips OLED) are listed next to the Sonos rooms. They are told to play the same web
     # address a Sonos room would be given; see chromecast.py. Their addresses are remembered in chromecast.json so the list is instant.
-    _CAST_CACHE = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager', 'chromecast.json')
+    _CAST_CACHE = os.path.join(data_root(HERE), 'MiniDiscManager', 'chromecast.json')
 
     def _cast_devices(self, refresh=False):
         if self._cast_tvs is None:
@@ -154,7 +156,7 @@ class CastMixin:
             vid = '%d' % int(time.time() * 1000)
             num, tracks = track.get('number'), self._tracks or []                   # the deck's track number / time display on the TV picture
             deck = {'pos': sum(1 for t in tracks if t['number'] <= num), 'count': len(tracks), 'length': float(track.get('seconds') or 0)} if num is not None and tracks else None
-            job = lyricvideo.Job(os.path.join(HERE, 'runtime', 'ffmpeg.exe'), stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
+            job = lyricvideo.Job(FFMPEG, stream['path'], os.path.join(PLAY_DIR, 'lyricvideo-' + vid),
                                  title or 'Track', artist or '', lines, float(ly.get('offset') or 0), float(track.get('seconds') or 0),
                                  cover, self.log, growing=not stream.get('done'), caption=self._caption(), album=track.get('album') or '',
                                  viz=getattr(self, '_cast_viz', None), start=start, deck=deck)
@@ -234,7 +236,7 @@ class CastMixin:
 
     # The speaker fetches the track itself from a small web server on this PC (the same files the window plays, behind the same
     # secret in the address). The page controls it like the NetMD remote: play, pause, seek, position, volume.
-    _SONOS_CACHE = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager', 'sonos.json')
+    _SONOS_CACHE = os.path.join(data_root(HERE), 'MiniDiscManager', 'sonos.json')
 
     def _remembered_speakers(self):
         if not self._cast_known:

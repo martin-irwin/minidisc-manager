@@ -55,6 +55,7 @@ import licensing
 import sonos_cast
 import video_links
 from mdm_common import UNITS_PER_SECOND
+from mdm_platform import data_root, open_path
 from mdm_paths import (BC_DIR, COPIES_DIR, FROZEN, HELPER, HERE, NETMD_HELPER, NODE_EXE, PLAY_DIR, REC_DIR, USER_DIR,
                        WEBVIEW_DIR)
 
@@ -528,7 +529,7 @@ class Api(lp_to_sp.LpToSpMixin, app_settings.AppSettingsMixin, backup_data.Backu
         if not os.path.isfile(path):
             return {'error': 'The driver guide (DRIVER-SETUP.html) is missing from the app folder.'}
         try:
-            os.startfile(path)
+            open_path(path)
         except OSError as exc:
             return {'error': 'Could not open the driver guide: %s' % exc}
         return {'ok': True}
@@ -609,7 +610,7 @@ def _sweep_temp(min_age=300):
                 pass
 
 
-WINDOW_FILE = os.path.join(os.environ.get('LOCALAPPDATA') or HERE, 'MiniDiscManager', 'window.json')     # the window's size, place and maximised state
+WINDOW_FILE = os.path.join(data_root(HERE), 'MiniDiscManager', 'window.json')     # the window's size, place and maximised state
 WINDOW_DEFAULT, WINDOW_MIN = (1280, 820), (820, 560)
 
 

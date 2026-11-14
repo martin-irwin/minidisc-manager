@@ -9,6 +9,7 @@ import tempfile
 import time
 
 import cdrip
+from mdm_paths import FFMPEG
 from mdm_paths import COPIES_DIR, HERE, NETMD_HELPER, USER_DIR
 
 
@@ -47,7 +48,7 @@ class IdentifyMixin:
     @staticmethod
     def _fingerprint(path):
         """Chromaprint fingerprint (base64) of the first two minutes of an audio file, made by the bundled ffmpeg."""
-        exe = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        exe = FFMPEG
         r = subprocess.run([exe, '-hide_banner', '-loglevel', 'error', '-i', path, '-t', '120', '-ac', '1', '-f', 'chromaprint', '-fp_format', 'base64', '-'],
                            capture_output=True, text=True, encoding='utf-8', errors='replace', creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         fp = r.stdout.strip()
@@ -58,7 +59,7 @@ class IdentifyMixin:
     @staticmethod
     def _audio_seconds(path):
         """Length in seconds of an audio file as ffmpeg reports it, or None when it cannot tell."""
-        exe = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        exe = FFMPEG
         r = subprocess.run([exe, '-hide_banner', '-i', path], capture_output=True, text=True, encoding='utf-8', errors='replace',
                            creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         m = re.search(r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)', r.stderr)

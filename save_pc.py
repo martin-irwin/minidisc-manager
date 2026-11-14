@@ -7,6 +7,8 @@ import subprocess
 import tempfile
 
 import webview
+from mdm_paths import FFMPEG
+from mdm_platform import open_path
 from mdm_paths import COPIES_DIR, HERE, NETMD_HELPER
 
 
@@ -72,7 +74,7 @@ class SavePcMixin:
 
     @staticmethod
     def _ffmpeg(args):
-        exe = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        exe = FFMPEG
         if not os.path.exists(exe):
             raise RuntimeError('The bundled decoder is missing (%s).' % exe)
         r = subprocess.run([exe, '-hide_banner', '-loglevel', 'error', '-y'] + args, capture_output=True, text=True,
@@ -82,7 +84,7 @@ class SavePcMixin:
 
     def open_folder(self, path):
         if path and os.path.isdir(path):
-            os.startfile(path)
+            open_path(path)
         return {'ok': True}
 
     def save_cancel(self):

@@ -1,0 +1,6 @@
+atracdenc - ATRAC encoder (ATRAC1 / ATRAC3) by Daniil Cherednik, LGPL-2.1.
+https://github.com/dcherednik/atracdenc
+atracdenc.js here is a WebAssembly build of it (GPL-2.0).
+MiniDisc Manager uses it only to encode LP2 and LP4 tracks for standard MiniDiscs (see helper\atrac3_encode.js).
+This build rounds the requested bitrate up to the next supported frame size, so the app asks for 128 (LP2, 384-byte frames)
+and 64 (LP4, 192-byte frames); both were checked by decoding the result with ffmpeg.

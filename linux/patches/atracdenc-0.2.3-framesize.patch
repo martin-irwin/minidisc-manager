@@ -1,0 +1,87 @@
+--- a/src/main.cpp
++++ b/src/main.cpp
+@@ -270,6 +270,9 @@
+ 
+     const string ext = GetFileExt(outFile);
+ 
++    TAt3PEnc::TSettings frameSettings;
++    TAt3PEnc::ParseAdvancedOpt(advancedOpt, frameSettings);
++
+     TCompressedOutputPtr omaIO;
+ 
+     string contName;
+@@ -283,7 +286,7 @@
+             "test",
+             numChannels,
+             (int32_t)numFrames, OMAC_ID_ATRAC3PLUS,
+-            2048,
++            frameSettings.FrameSize,
+             false));
+     }
+ 
+--- a/src/atrac3p.h
++++ b/src/atrac3p.h
+@@ -35,9 +35,11 @@
+             GHA_ENABLED = GHA_PASS_INPUT | GHA_WRITE_TONAL | GHA_WRITE_RESIUDAL
+         };
+         uint8_t UseGha;
++        uint16_t FrameSize; //bytes per frame: 2048 (352 kbps, default), 1488 (256 kbps), 376 (64 kbps)...
+ 
+         TSettings()
+             : UseGha(GHA_ENABLED)
++            , FrameSize(2048)
+         {}
+     };
+     TAt3PEnc(TCompressedOutputPtr&& out, int channels, TSettings settings);
+--- a/src/atrac/at3p/at3p.cpp
++++ b/src/atrac/at3p/at3p.cpp
+@@ -37,7 +37,7 @@
+ class TAt3PEnc::TImpl {
+ public:
+     TImpl(ICompressedOutput* out, int channels, TSettings settings)
+-        : BitStream(out, 2048)
++        : BitStream(out, settings.FrameSize)
+         , ChannelCtx(channels)
+         , GhaProcessor(MakeGhaProcessor0(channels == 2))
+         , Settings(settings)
+@@ -194,10 +194,19 @@
+ 
+ 
+ 
++static void SetFrameSize(const std::string& str, TAt3PEnc::TSettings& settings) {
++    int size = std::stoi(str);
++    if (size < 128 || size > 2048 || size % 8 != 0) {
++        throw std::runtime_error("framesize must be a multiple of 8 between 128 and 2048 bytes");
++    }
++    settings.FrameSize = (uint16_t)size;
++}
++
+ void TAt3PEnc::ParseAdvancedOpt(const char* opt, TSettings& settings) {
+     typedef void (*processFn)(const std::string& str, TSettings& settings);
+     static std::unordered_map<std::string, processFn> keys {
+-        {"ghadbg", &SetGha}
++        {"ghadbg", &SetGha},
++        {"framesize", &SetFrameSize}
+     };
+ 
+     if (opt == nullptr)
+--- a/src/CMakeLists.txt
++++ b/src/CMakeLists.txt
+@@ -32,7 +32,7 @@
+ enable_cxx_compiler_flag_if_supported("-Wall")
+ enable_cxx_compiler_flag_if_supported("-Wextra")
+ 
+-if (WIN32)
++if (MSVC)
+     add_compile_definitions(PLATFORM_WINDOWS)
+     add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
+     include_directories("platform/win/getopt")
+@@ -104,7 +104,7 @@
+ )
+ 
+ add_library(pcm_io STATIC ${SOURCE_PCM_IO_LIB})
+-if (NOT WIN32)
++if (NOT MSVC)
+ target_link_libraries(pcm_io ${SNDFILE_LIBRARIES})
+ endif()
+ 

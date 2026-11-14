@@ -1,0 +1,89 @@
+--- a/dist/himd-functions.js	2026-11-14 11:42:03
++++ b/dist/himd-functions.js	2026-11-14 11:42:03
+@@ -632,6 +632,30 @@
+     await himd.flush();
+ }
+ exports.uploadStreamingMacDependent = uploadStreamingMacDependent;
++// rawRanges: [{first, last}] blocks (inclusive) used by the deleted tracks; keptRanges: the same for the fragments of the tracks that stay.
++// Returns the regions to free: [{firstBlock, length}]. The blocks of the deleted tracks are collected, every block a kept track still
++// uses (a neighbour shares its boundary block) is taken out, what is left is grouped into runs, and each run is trimmed to whole
++// 32 kB clusters (a block is 16 kB; one or two blocks per run can't be freed).
++function planFreeRegions(rawRanges, keptRanges) {
++    const doomed = new Set();
++    for (const r of rawRanges) for (let b = r.first; b <= r.last; b++) doomed.add(b);
++    for (const r of keptRanges) for (let b = r.first; b <= r.last; b++) doomed.delete(b);
++    const blocks = [...doomed].sort((a, b) => a - b);
++    const out = [];
++    for (let i = 0; i < blocks.length;) {
++        let j = i;
++        while (j + 1 < blocks.length && blocks[j + 1] === blocks[j] + 1) j++;
++        let first = blocks[i], length = j - i + 1;
++        if (first % 2 === 1) { first++; length--; }
++        if (length % 2 === 1) length--;
++        if (length > 0) out.push({ firstBlock: first, length });
++        i = j + 1;
++    }
++    // The caller moves every kept fragment down once per region, comparing the fragment's CURRENT block with the region's start, so the
++    // regions must come highest first: a block that has already moved down past a lower region's start must still count as above it.
++    return out.sort((a, b) => b.firstBlock - a.firstBlock);
++}
++exports.planFreeRegions = planFreeRegions;
+ async function deleteTracks(himd, tracksToDelete) {
+     // AFTER INVOKING THIS THE MACLIST NEEDS TO BE UPDATED AND RESIGNED!
+     /*
+@@ -644,7 +668,24 @@
+     */
+     if (!himd.filesystem.freeFileRegions) {
+         throw new himd_1.HiMDError("Track deletion is not supported by this driver.");
++    }
++    // PATCH (MiniDisc Manager): neighbouring tracks share their boundary block (one track ends in the block the next one starts in).
++    // The original code freed every block of a deleted track, which also freed that shared block and so damaged the audio of the
++    // kept neighbour. Remember the first and last block of every track that stays, and never free those.
++    const keptRanges = [];
++    {
++        const doomed = new Set(tracksToDelete);
++        for (let i = 0; i < himd.getTrackCount(); i++) {
++            if (doomed.has(i)) continue;
++            let f = himd.getTrack(himd.trackIndexToTrackSlot(i)).firstFragment;
++            while (f !== 0) {
++                const fo = himd.getFragment(f);
++                keptRanges.push({ first: fo.firstBlock, last: fo.lastBlock });
++                f = fo.nextFragment;
++            }
++        }
+     }
++    const rawRanges = [];
+     const blocksToFree = [];
+     tracksToDelete.sort((a, b) => b - a);
+     for (let trackListIndex of tracksToDelete) {
+@@ -656,21 +697,7 @@
+         while (fragment !== 0) {
+             const fragmentObject = himd.getFragment(fragment);
+             fragmentChain.push(fragmentObject);
+-            const block = {
+-                firstBlock: fragmentObject.firstBlock,
+-                length: fragmentObject.lastBlock - fragmentObject.firstBlock + 1,
+-            };
+-            // Block is 16kBytes
+-            // Cluster is 32kBytes.
+-            // One or two blocks can't be freed... max 32k lost lost per track
+-            if ((block.firstBlock % 2) === 1) {
+-                block.firstBlock++;
+-                block.length--;
+-            }
+-            if ((block.length % 2) === 1) {
+-                block.length--;
+-            }
+-            blocksToFree.push(block);
++            rawRanges.push({ first: fragmentObject.firstBlock, last: fragmentObject.lastBlock });     // trimmed and merged below (planFreeRegions)
+             const nextFragment = fragmentObject.nextFragment;
+             himd.removeFragment(fragment);
+             fragment = nextFragment;
+@@ -690,6 +717,7 @@
+         himd.writeTrackIndexToTrackSlot(himd.getTrackCount() - 1, 0);
+         himd.writeTrackCount(himd.getTrackCount() - 1);
+     }
++    blocksToFree.push(...planFreeRegions(rawRanges, keptRanges));
+     // Traverse all other tracks, to update the block positions.
+     for (let i = 0; i < himd.getTrackCount(); i++) {
+         let frag = himd.getTrack(himd.trackIndexToTrackSlot(i)).firstFragment;

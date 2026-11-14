@@ -1,0 +1,65 @@
+# MiniDisc Manager (linux/setup.sh installs this as /etc/udev/rules.d/60-minidisc.rules).
+# Lets the person signed in at the computer use MiniDisc recorders over USB without root - the Linux side of the
+# "WinUSB driver with Zadig" step on Windows. Generated from the device lists in himd_dev.py (NetMD) and himd-js (Hi-MD).
+
+# Hi-MD recorders in Hi-MD mode (USB mass storage). linux/setup.sh also tells usb-storage to ignore these.
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="017f", TAG+="uaccess"  # Sony MZ-NH1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0181", TAG+="uaccess"  # Sony MZ-NH3D
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0183", TAG+="uaccess"  # Sony MZ-NH900
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0185", TAG+="uaccess"  # Sony MZ-NH700
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0187", TAG+="uaccess"  # Sony MZ-NH600
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="018b", TAG+="uaccess"  # Sony LAM
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="01ea", TAG+="uaccess"  # Sony MZ-DH10P
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021a", TAG+="uaccess"  # Sony MZ-RH10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021c", TAG+="uaccess"  # Sony MZ-RH910
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="022d", TAG+="uaccess"  # Sony CMT-AH10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="023d", TAG+="uaccess"  # Sony DS-HMD1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0287", TAG+="uaccess"  # Sony MZ-RH1
+
+# NetMD recorders and decks (standard MiniDiscs; Hi-MD recorders with a standard disc inside).
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04da", ATTR{idProduct}=="23b3", TAG+="uaccess"  # Panasonic SJ-MR250
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04da", ATTR{idProduct}=="23b6", TAG+="uaccess"  # Panasonic SJ-MR270
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04dd", ATTR{idProduct}=="7202", TAG+="uaccess"  # Sharp IM-MT899H
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04dd", ATTR{idProduct}=="9013", TAG+="uaccess"  # Sharp IM-DR400
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="04dd", ATTR{idProduct}=="9014", TAG+="uaccess"  # Sharp IM-DR80
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0034", TAG+="uaccess"  # Sony PCLK-XX
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0036", TAG+="uaccess"  # Sony NetMD
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0075", TAG+="uaccess"  # Sony MZ-N1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="007c", TAG+="uaccess"  # Sony NetMD
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0080", TAG+="uaccess"  # Sony LAM-1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0081", TAG+="uaccess"  # Sony MDS-JB980/MDS-NT1/MDS-JE780
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0084", TAG+="uaccess"  # Sony MZ-N505
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0085", TAG+="uaccess"  # Sony MZ-S1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0086", TAG+="uaccess"  # Sony MZ-N707
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="008e", TAG+="uaccess"  # Sony CMT-C7NT
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0097", TAG+="uaccess"  # Sony PCGA-MDN1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00ad", TAG+="uaccess"  # Sony CMT-L7HD
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00c6", TAG+="uaccess"  # Sony MZ-N10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00c7", TAG+="uaccess"  # Sony MZ-N910
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00c8", TAG+="uaccess"  # Sony MZ-N710/NF810
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00c9", TAG+="uaccess"  # Sony MZ-N510/N610
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00ca", TAG+="uaccess"  # Sony MZ-NE410/NF520D
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00e7", TAG+="uaccess"  # Sony CMT-M333NT/M373NT
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="00eb", TAG+="uaccess"  # Sony MZ-NE810/NE910
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0101", TAG+="uaccess"  # Sony LAM
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0113", TAG+="uaccess"  # Aiwa AM-NX1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="011a", TAG+="uaccess"  # Sony CMT-SE7
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="013f", TAG+="uaccess"  # Sony MDS-S500
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0148", TAG+="uaccess"  # Sony MDS-A1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="014c", TAG+="uaccess"  # Aiwa AM-NX9
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="017e", TAG+="uaccess"  # Sony MZ-NH1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0180", TAG+="uaccess"  # Sony MZ-NH3D
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0182", TAG+="uaccess"  # Sony MZ-NH900
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0184", TAG+="uaccess"  # Sony MZ-NH700/NH800
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0186", TAG+="uaccess"  # Sony MZ-NH600
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0187", TAG+="uaccess"  # Sony MZ-NH600D
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0188", TAG+="uaccess"  # Sony MZ-N920
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="018a", TAG+="uaccess"  # Sony LAM-3
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="01e9", TAG+="uaccess"  # Sony MZ-DH10P
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0219", TAG+="uaccess"  # Sony MZ-RH10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021b", TAG+="uaccess"  # Sony MZ-RH710/MZ-RH910
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="021d", TAG+="uaccess"  # Sony CMT-AH10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="022c", TAG+="uaccess"  # Sony CMT-AH10
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="023c", TAG+="uaccess"  # Sony DS-HMD1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="054c", ATTR{idProduct}=="0286", TAG+="uaccess"  # Sony MZ-RH1
+SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTR{idVendor}=="0b28", ATTR{idProduct}=="1004", TAG+="uaccess"  # Kenwood MDX-J9

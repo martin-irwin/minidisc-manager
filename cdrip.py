@@ -20,12 +20,15 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-_k32 = ctypes.WinDLL('kernel32', use_last_error=True)
-_k32.CreateFileW.restype = wt.HANDLE
-_k32.CreateFileW.argtypes = [wt.LPCWSTR, wt.DWORD, wt.DWORD, ctypes.c_void_p, wt.DWORD, wt.DWORD, wt.HANDLE]
-_k32.DeviceIoControl.argtypes = [wt.HANDLE, wt.DWORD, ctypes.c_void_p, wt.DWORD, ctypes.c_void_p, wt.DWORD, ctypes.POINTER(wt.DWORD), ctypes.c_void_p]
-_k32.CloseHandle.argtypes = [wt.HANDLE]
-_k32.GetDriveTypeW.argtypes = [wt.LPCWSTR]
+if hasattr(ctypes, 'WinDLL'):      # Windows: the drive is read directly. Elsewhere only the online lookups below are used (no drives listed).
+    _k32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    _k32.CreateFileW.restype = wt.HANDLE
+    _k32.CreateFileW.argtypes = [wt.LPCWSTR, wt.DWORD, wt.DWORD, ctypes.c_void_p, wt.DWORD, wt.DWORD, wt.HANDLE]
+    _k32.DeviceIoControl.argtypes = [wt.HANDLE, wt.DWORD, ctypes.c_void_p, wt.DWORD, ctypes.c_void_p, wt.DWORD, ctypes.POINTER(wt.DWORD), ctypes.c_void_p]
+    _k32.CloseHandle.argtypes = [wt.HANDLE]
+    _k32.GetDriveTypeW.argtypes = [wt.LPCWSTR]
+else:
+    _k32 = None
 _INVALID = wt.HANDLE(-1).value
 
 IOCTL_CDROM_READ_TOC = 0x00024000
@@ -41,7 +44,9 @@ class CdError(Exception):
 
 
 def drives():
-    """Letters of the CD / DVD drives."""
+    """Letters of the CD / DVD drives (none yet on Linux and macOS)."""
+    if _k32 is None:
+        return []
     mask = _k32.GetLogicalDrives()
     return [chr(65 + i) for i in range(26) if mask & (1 << i) and _k32.GetDriveTypeW('%s:\\' % chr(65 + i)) == 5]
 

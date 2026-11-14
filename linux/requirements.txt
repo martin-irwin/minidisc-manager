@@ -1,0 +1,9 @@
+# Python libraries for running MiniDisc Manager from source on Linux (linux/setup.sh installs them into .venv).
+# The window itself uses the system's GTK WebKit through PyGObject (python-gobject + webkit2gtk-4.1), which the
+# venv sees because setup.sh makes it with --system-site-packages.
+pywebview==6.2.1
+pyusb
+libusb-package
+pillow
+numpy
+audioop-lts; python_version >= "3.13"

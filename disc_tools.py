@@ -17,6 +17,7 @@ import himd_fs
 import recorders
 import usb.util
 import webview
+from mdm_platform import open_path
 from mdm_paths import BACKUP_DIR, COPIES_DIR, NETMD_HELPER, RECORDER_PHOTOS
 
 
@@ -306,7 +307,7 @@ class DiscToolsMixin:
         try:
             with open(path, 'wb') as f:
                 f.write(data)
-            os.startfile(path)
+            open_path(path)
         except OSError as exc:
             return {'error': 'The track list could not be opened: %s' % exc}
         return {'ok': True, 'path': path}

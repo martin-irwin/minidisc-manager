@@ -6,6 +6,21 @@ const os = require('os');
 const path = require('path');
 const { spawn } = require('child_process');
 
+// Windows uses the bundled .exe files, as always. On Linux and macOS a program in the runtime folder is used when it is there,
+// else the system's own copy (found on PATH).
+const WIN = process.platform === 'win32';
+const onPath = name => {                     // full path of a program on PATH (like `which`), or null
+    for (const dir of (process.env.PATH || '').split(path.delimiter)) {
+        const f = path.join(dir, name);
+        try { require('fs').accessSync(f, require('fs').constants.X_OK); return f; } catch (e) { /* not here */ }
+    }
+    return null;
+};
+const runtimeBin = (runtimeDir, name) => {
+    const exe = path.join(runtimeDir, name + (WIN ? '.exe' : ''));
+    return WIN || fs.existsSync(exe) ? exe : (onPath(name) || exe);
+};
+
 // bitrate: what to ask atracdenc for (this build rounds UP to a frame size it knows: 128 -> 384-byte frames, 64 -> 192-byte frames).
 // frame: bytes per ATRAC3 frame. divisor: how much longer than SP the disc lasts. Each frame holds 1024 samples per channel.
 const ATRAC3 = {
@@ -53,10 +68,12 @@ const framesForPlus = seconds => Math.ceil(seconds * 44100 / AT3P_SAMPLES_PER_FR
 // Encodes a WAV file (16-bit 44.1 kHz stereo) and resolves with {frames: Buffer of whole frames, frameSize, header}.
 // onProgress(fraction 0..1), if given: the encoder writes its file as it goes, so the share of the expected size written so far is how far it has got.
 function rawEncodeAtrac3Plus(runtimeDir, wavPath, frameBytes = 2048, onProgress = null) {
-    const exe = path.join(runtimeDir, 'atracdenc3p', 'atracdenc.exe'), dll = path.join(runtimeDir, 'atracdenc3p', 'sndfile.dll');
-    if (!fs.existsSync(exe) || !fs.existsSync(dll)) return Promise.reject(new Error('The ATRAC3+ encoder is missing (' + exe + ').'));
+    // Windows: the checked build and its sndfile.dll, refused if either file's SHA-256 differs. Linux / macOS: runtime/atracdenc3p/atracdenc,
+    // built from source with the same frame-size patch by linux/setup.sh (the stock atracdenc ignores the bit rate, so no PATH fallback).
+    const exe = path.join(runtimeDir, 'atracdenc3p', WIN ? 'atracdenc.exe' : 'atracdenc'), dll = WIN ? path.join(runtimeDir, 'atracdenc3p', 'sndfile.dll') : null;
+    if (!fs.existsSync(exe) || (dll && !fs.existsSync(dll))) return Promise.reject(new Error('The ATRAC3+ encoder is missing (' + exe + ').'));
     const sha = f => require('crypto').createHash('sha256').update(fs.readFileSync(f)).digest('hex').toUpperCase();
-    if (sha(exe) !== AT3P_EXE_SHA256 || sha(dll) !== AT3P_DLL_SHA256) return Promise.reject(new Error('The ATRAC3+ encoder is not the file that was checked and approved, so it was not run.'));
+    if (WIN && (sha(exe) !== AT3P_EXE_SHA256 || sha(dll) !== AT3P_DLL_SHA256)) return Promise.reject(new Error('The ATRAC3+ encoder is not the file that was checked and approved, so it was not run.'));
     const out = path.join(os.tmpdir(), 'mdm-' + process.pid + '-' + Math.random().toString(36).slice(2) + '.oma');
     let expect = 0;
     try { expect = framesForPlus(Math.max(0, fs.statSync(wavPath).size - 44) / 176400) * frameBytes + 96; } catch (e) { /* no estimate: no progress */ }
@@ -100,7 +117,7 @@ const AT3P_OVERSHOOT = 1.19;           // ATRAC3+ output peak / input peak. It v
 // onProgress(fraction), if given, with expectBytes (the decoded size to expect, as 32-bit float stereo): how much has been checked so far.
 function decodedPeak(runtimeDir, inputFormat, bytes, onProgress = null, expectBytes = 0) {
     return new Promise((resolve, reject) => {
-        const exe = path.join(runtimeDir, 'ffmpeg.exe');
+        const exe = runtimeBin(runtimeDir, 'ffmpeg');
         if (!fs.existsSync(exe)) return reject(new Error('The bundled decoder is missing.'));
         const p = spawn(exe, ['-hide_banner', '-loglevel', 'error', '-f', inputFormat, '-i', 'pipe:0', '-vn', '-f', 'f32le', '-acodec', 'pcm_f32le', 'pipe:1'], { windowsHide: true });
         let peak = 0, carry = Buffer.alloc(0), err = '', seen = 0, last = 0;
@@ -124,7 +141,7 @@ function decodedPeak(runtimeDir, inputFormat, bytes, onProgress = null, expectBy
 function scaledCopy(runtimeDir, wavPath, gain) {
     const out = path.join(os.tmpdir(), 'mdm-' + process.pid + '-' + Math.random().toString(36).slice(2) + '-gain.wav');
     return new Promise((resolve, reject) => {
-        const p = spawn(path.join(runtimeDir, 'ffmpeg.exe'), ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-vn', '-af', 'volume=' + gain.toFixed(5),
+        const p = spawn(runtimeBin(runtimeDir, 'ffmpeg'), ['-hide_banner', '-loglevel', 'error', '-y', '-i', wavPath, '-vn', '-af', 'volume=' + gain.toFixed(5),
             '-acodec', 'pcm_s16le', '-ar', '44100', '-ac', '2', '-f', 'wav', out], { windowsHide: true, stdio: ['ignore', 'ignore', 'pipe'] });
         let err = '';
         p.stderr.on('data', d => { err += d; });
@@ -136,7 +153,7 @@ function scaledCopy(runtimeDir, wavPath, gain) {
 // Loudest sample (1.0 = full scale) of a WAV file, read straight from disk by ffmpeg (decoded to 32-bit float, nothing clipped).
 function filePeak(runtimeDir, wavPath, onProgress = null, expectBytes = 0) {
     return new Promise((resolve, reject) => {
-        const exe = path.join(runtimeDir, 'ffmpeg.exe');
+        const exe = runtimeBin(runtimeDir, 'ffmpeg');
         if (!fs.existsSync(exe)) return reject(new Error('The bundled decoder is missing.'));
         const p = spawn(exe, ['-hide_banner', '-loglevel', 'error', '-i', wavPath, '-vn', '-f', 'f32le', '-acodec', 'pcm_f32le', 'pipe:1'], { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
         let peak = 0, carry = Buffer.alloc(0), err = '', seen = 0, last = 0;

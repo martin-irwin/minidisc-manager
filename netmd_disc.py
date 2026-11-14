@@ -14,6 +14,7 @@ import himd_disc
 import himd_fs
 import usb.util
 from mdm_common import UNITS_PER_SECOND
+from mdm_paths import FFMPEG
 from mdm_paths import BACKUP_DIR, CLONE_DIR, HERE, NETMD_HELPER
 
 
@@ -53,7 +54,7 @@ class NetMdMixin:
     @staticmethod
     def _probe_seconds(path):
         """Playing time of an audio file, by decoding it with the bundled ffmpeg (the last time= line)."""
-        exe = os.path.join(HERE, 'runtime', 'ffmpeg.exe')
+        exe = FFMPEG
         r = subprocess.run([exe, '-hide_banner', '-nostats', '-i', path, '-vn', '-f', 'null', '-'], capture_output=True, text=True, encoding='utf-8',
                            errors='replace', creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         hits = re.findall(r'time=(\d+):(\d\d):(\d\d(?:\.\d+)?)', r.stderr)
