@@ -56,6 +56,13 @@ mdm save all --to ~/Music/from-disc --as flac
 
 Formats for `add`: `sp`, `lp2` or `lp4` on a standard disc; `auto`, `pcm`, `mp3`, `lp2`, `lp4`, `hisp`, `hilp` or `at3p` on a Hi-MD disc. After every change, mdm reads the disc back and checks that the tracks it shouldn't have touched are unchanged. With a standard disc in a Hi-MD recorder, mdm picks the recorder's standard-disc entry by itself. To choose one yourself, use `--device himd|netmd|N`.
 
+## Load and fans
+
+Measured on a 2012 Mac mini (i7-3615QM, no usable GPU) running Omarchy:
+
+- **The window, idle: about 2 % CPU.** WebKitGTK's GPU compositing is off by default on Linux. Without a GPU it ran in software for every frame and kept the window at 137 % CPU, around 90 C. If you set `WEBKIT_DISABLE_COMPOSITING_MODE` yourself, the program keeps your value.
+- **Recording:** encoding is short and uses one core: LP2 runs at about 55x real time and Hi-SP at about 26x, so a 45-minute album takes about 50 s (LP2) or 100 s (Hi-SP). The transfer to the recorder barely uses the CPU. `mdm` runs at low priority (`nice 10`).
+
 ## What setup.sh does
 
 | Step | What | Where |

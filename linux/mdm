@@ -3,4 +3,5 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
 [ -x "$ROOT/.venv/bin/python" ] && [ -d "$ROOT/runtime/node_modules" ] || { echo "mdm: run linux/setup.sh first" >&2; exit 1; }
-exec "$ROOT/.venv/bin/python" "$ROOT/mdm_cli.py" "$@"
+# Low priority, so encoding never makes the desktop stutter (it is short: LP2 ~55x and Hi-SP ~26x real time on a 2012 i7).
+exec nice -n 10 "$ROOT/.venv/bin/python" "$ROOT/mdm_cli.py" "$@"
