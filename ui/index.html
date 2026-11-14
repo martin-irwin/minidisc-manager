@@ -1060,7 +1060,13 @@ async function scan() {
   for (const d of r.devices) {
     const o = document.createElement('option'); o.value = d.index; o.textContent = d.name; sel.append(o);
   }
-  current = r.devices[0].index; await load();
+  current = r.devices[0].index;
+  // Some Hi-MD recorders are listed twice: a Hi-MD entry and a standard-disc entry with the same USB id. With a standard MiniDisc
+  // inside, the Hi-MD entry finds no disc, so the standard-disc entry is opened instead.
+  if (await load() === 'none') {
+    const twin = r.devices.find(d => d.index !== current && d.mode === 'netmd' && d.usb === r.devices[0].usb);
+    if (twin) { current = twin.index; sel.value = String(twin.index); await load(); }
+  }
 }
 
 // The track list stored on a Hi-MD disc as TRACKS.CSV. When the user has switched it on and the disc's copy is missing or out of date
@@ -1108,7 +1114,7 @@ async function load(noSync) {
   setClock(r.clock);
   fmtInfo = { netmd, canHimd: !!r.canHimd, tracks: r.disc ? r.disc.tracks.length : null, protected: !!(r.disc && r.disc.writeProtected) };
   $('convertHint').classList.add('hidden'); $('protectNote').classList.add('hidden'); $('pendingNote').classList.add('hidden');   // shown again below only when it applies to this disc
-  if (r.discState === 'none') { $('content').classList.add('hidden'); emptyState('No disc in the recorder', 'Insert a Hi-MD or MD disc and press rescan.'); return; }
+  if (r.discState === 'none') { $('content').classList.add('hidden'); emptyState('No disc in the recorder', 'Insert a Hi-MD or MD disc and press rescan.'); return 'none'; }
   if (r.discState === 'unreadable') {
     emptyState('This disc could not be read', r.discMessage || '');
     if (!netmd) $('empty').append(el('div', { className: 'row', style: 'margin-top:14px' }, el('button', { className: 'danger', textContent: 'Format this disc…', onclick: openFormat })));
