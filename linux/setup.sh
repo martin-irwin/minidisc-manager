@@ -167,4 +167,14 @@ else
     say "6/6  USB access: skipped (--no-system). Without it you may need to run as root, and Hi-MD recorders stay with usb-storage."
 fi
 
-say "Done. Start MiniDisc Manager with:  linux/run.sh"
+# The command-line tool: ~/.local/bin/mdm -> linux/mdm (no sudo). A different program already called mdm is left alone.
+BIN="$HOME/.local/bin"
+mkdir -p "$BIN"
+if [ ! -e "$BIN/mdm" ] || [ "$(readlink -f "$BIN/mdm")" = "$LINUX/mdm" ]; then
+    ln -sf "$LINUX/mdm" "$BIN/mdm"
+    echo "    command line: mdm (in $BIN; try: mdm show)"
+else
+    warn "$BIN/mdm is another program, so the command-line tool was not linked; use $LINUX/mdm"
+fi
+
+say "Done. Start MiniDisc Manager with:  linux/run.sh    (or from the command line: mdm --help)"

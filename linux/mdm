@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# mdm - MiniDisc Manager from the command line (after linux/setup.sh). See: mdm --help
+set -euo pipefail
+ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")/.." && pwd)"
+[ -x "$ROOT/.venv/bin/python" ] && [ -d "$ROOT/runtime/node_modules" ] || { echo "mdm: run linux/setup.sh first" >&2; exit 1; }
+exec "$ROOT/.venv/bin/python" "$ROOT/mdm_cli.py" "$@"
