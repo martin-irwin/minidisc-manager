@@ -66,6 +66,7 @@ def omarchy_theme():
     try:
         with open(os.path.join(current, 'theme.name'), encoding='utf-8') as f:
             name = f.read().strip()
+        name = ' '.join(w if w.isdigit() else w.capitalize() for w in name.replace('-', ' ').split())   # as omarchy-theme-current says it
     except OSError:
         name = ''
     font = ''
