@@ -38,6 +38,24 @@ You can run `linux/setup.sh` again at any time, for example after `git pull`. Th
 - `--no-atrac3plus`: skips building the Hi-SP / Hi-LP encoder. Everything else still works, including PCM, MP3, SP and LP2 / LP4.
 - `--no-system`: skips the sudo step. Without it you may need to run the program as root, and Hi-MD recorders stay with the kernel.
 
+## Command line: mdm
+
+`linux/setup.sh` also links `~/.local/bin/mdm`. It uses the program's own code, so it does exactly what the window does. Only one program can use a recorder at a time: close the window first, or add `--close-gui`.
+
+```sh
+mdm devices                                   # the connected recorders
+mdm show                                      # the disc and its tracks (--json for scripts)
+mdm add ~/Music/Album/*.flac --format lp2     # shows the plan and asks first (--dry-run, --yes)
+mdm rename 3 "New title" --artist "Someone"   # artist / album: Hi-MD discs only
+mdm rename-disc "My disc"
+mdm move 10 1
+mdm delete 10                                 # asks first
+mdm group 1-5 "Album name"                    # Hi-MD discs
+mdm save all --to ~/Music/from-disc --as flac
+```
+
+Formats for `add`: `sp`, `lp2` or `lp4` on a standard disc; `auto`, `pcm`, `mp3`, `lp2`, `lp4`, `hisp`, `hilp` or `at3p` on a Hi-MD disc. After every change, mdm reads the disc back and checks that the tracks it shouldn't have touched are unchanged. With a standard disc in a Hi-MD recorder, mdm picks the recorder's standard-disc entry by itself. To choose one yourself, use `--device himd|netmd|N`.
+
 ## What setup.sh does
 
 | Step | What | Where |
